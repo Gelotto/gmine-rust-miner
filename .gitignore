@@ -1,0 +1,41 @@
+# Rust build artifacts
+/target/
+Cargo.lock
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Mining state files
+gmine_miner.state
+gmine_miner.state.*
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+
+# Local environment files
+.env
+.env.local
+
+# Build output
+*.so
+*.dylib
+*.dll
+
+# Test coverage
+tarpaulin-report.html
+cobertura.xml
+
+# Generated protobuf files
+src/gen/

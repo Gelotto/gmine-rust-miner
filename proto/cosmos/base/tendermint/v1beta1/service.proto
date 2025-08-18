@@ -1,0 +1,158 @@
+syntax = "proto3";
+package cosmos.base.tendermint.v1beta1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/cosmos/cosmos-sdk/client/grpc/tmservice";
+
+// Service defines the gRPC querier service for tendermint queries.
+service Service {
+  // GetNodeInfo queries the current node info.
+  rpc GetNodeInfo(GetNodeInfoRequest) returns (GetNodeInfoResponse);
+  
+  // GetLatestBlock returns the latest block.
+  rpc GetLatestBlock(GetLatestBlockRequest) returns (GetLatestBlockResponse);
+  
+  // GetBlockByHeight queries block for given height.
+  rpc GetBlockByHeight(GetBlockByHeightRequest) returns (GetBlockByHeightResponse);
+}
+
+// GetLatestBlockRequest is the request type for the Query/GetLatestBlock RPC method.
+message GetLatestBlockRequest {}
+
+// GetLatestBlockResponse is the response type for the Query/GetLatestBlock RPC method.
+message GetLatestBlockResponse {
+  Block block = 1;
+}
+
+// GetBlockByHeightRequest is the request type for the Query/GetBlockByHeight RPC method.
+message GetBlockByHeightRequest {
+  int64 height = 1;
+}
+
+// GetBlockByHeightResponse is the response type for the Query/GetBlockByHeight RPC method.
+message GetBlockByHeightResponse {
+  Block block = 1;
+}
+
+// GetNodeInfoRequest is the request type for the Query/GetNodeInfo RPC method.
+message GetNodeInfoRequest {}
+
+// GetNodeInfoResponse is the response type for the Query/GetNodeInfo RPC method.
+message GetNodeInfoResponse {
+  DefaultNodeInfo default_node_info = 1;
+  ApplicationVersion application_version = 2;
+}
+
+// Block contains block data 
+message Block {
+  Header header = 1;
+  Data data = 2;
+  EvidenceList evidence = 3;
+  Commit last_commit = 4;
+}
+
+// Header defines the structure of a Tendermint block header.
+message Header {
+  // basic block info
+  Consensus version = 1;
+  string chain_id = 2;
+  int64 height = 3;
+  google.protobuf.Timestamp time = 4;
+  
+  // prev block info
+  BlockID last_block_id = 5;
+  
+  // hashes of block data
+  bytes last_commit_hash = 6;
+  bytes data_hash = 7;
+  
+  // hashes from the app output from the prev block
+  bytes validators_hash = 8;
+  bytes next_validators_hash = 9;
+  bytes consensus_hash = 10;
+  bytes app_hash = 11;
+  bytes last_results_hash = 12;
+  
+  // consensus info
+  bytes evidence_hash = 13;
+  bytes proposer_address = 14;
+}
+
+// Consensus contains consensus version info
+message Consensus {
+  uint64 block = 1;
+  uint64 app = 2;
+}
+
+// BlockID identifies a block
+message BlockID {
+  bytes hash = 1;
+  PartSetHeader part_set_header = 2;
+}
+
+// PartSetHeader
+message PartSetHeader {
+  uint32 total = 1;
+  bytes hash = 2;
+}
+
+// Data contains the set of transactions included in the block
+message Data {
+  repeated bytes txs = 1;
+}
+
+// EvidenceList contains evidence
+message EvidenceList {
+  repeated Evidence evidence = 1;
+}
+
+// Evidence placeholder
+message Evidence {
+  // Simplified for now - actual evidence types are complex
+  bytes data = 1;
+}
+
+// Commit contains commit signatures
+message Commit {
+  int64 height = 1;
+  int32 round = 2;
+  BlockID block_id = 3;
+  repeated CommitSig signatures = 4;
+}
+
+// CommitSig contains a signature for a commit
+message CommitSig {
+  uint32 block_id_flag = 1;
+  bytes validator_address = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  bytes signature = 4;
+}
+
+// DefaultNodeInfo is basic node information
+message DefaultNodeInfo {
+  ProtocolVersion protocol_version = 1;
+  string default_node_id = 2;
+  string listen_addr = 3;
+  string network = 4;
+  string version = 5;
+  string channels = 6;
+  string moniker = 7;
+}
+
+// ProtocolVersion contains protocol version info
+message ProtocolVersion {
+  uint64 p2p = 1;
+  uint64 block = 2;
+  uint64 app = 3;
+}
+
+// ApplicationVersion contains application version info
+message ApplicationVersion {
+  string name = 1;
+  string app_name = 2;
+  string version = 3;
+  string git_commit = 4;
+  string build_tags = 5;
+  string go_version = 6;
+}

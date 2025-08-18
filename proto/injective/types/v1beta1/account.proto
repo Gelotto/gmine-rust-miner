@@ -1,0 +1,15 @@
+syntax = "proto3";
+package injective.types.v1beta1;
+
+import "cosmos/auth/v1beta1/auth_simple.proto";
+
+option go_package = "github.com/InjectiveLabs/injective-core/injective-chain/types";
+
+// EthAccount implements the authtypes.AccountI interface and embeds an
+// authtypes.BaseAccount type. It is compatible with the auth AccountKeeper.
+message EthAccount {
+  // base_account is an embedded BaseAccount
+  cosmos.auth.v1beta1.BaseAccount base_account = 1;
+  // code_hash is the hash of the contract code (if any)
+  bytes code_hash = 2;
+}

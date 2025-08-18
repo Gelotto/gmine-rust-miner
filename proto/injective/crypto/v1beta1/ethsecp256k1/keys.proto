@@ -1,0 +1,16 @@
+syntax = "proto3";
+package injective.crypto.v1beta1.ethsecp256k1;
+
+option go_package = "github.com/InjectiveLabs/injective-core/injective-chain/crypto/ethsecp256k1";
+
+// PubKey defines a secp256k1 public key for Injective's Ethereum-compatible accounts
+// Key is the compressed form of the pubkey. The first byte depends on the y-coordinate
+// of the pubkey: 0x02 if y is even, 0x03 if y is odd.
+message PubKey {
+  bytes key = 1;
+}
+
+// PrivKey defines a secp256k1 private key.
+message PrivKey {
+  bytes key = 1;
+}

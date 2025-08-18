@@ -1,0 +1,8 @@
+apply plugin: 'org.mozilla.rust-android-gradle.rust-android'
+
+cargo {
+    module = "."
+    libname = "gmine_mobile"
+    targets = ["arm64", "arm", "x86_64"]
+    pythonCommand = "python3"
+}

@@ -1,0 +1,31 @@
+syntax = "proto3";
+package cosmos.auth.v1beta1;
+
+import "cosmos/auth/v1beta1/auth_simple.proto";
+
+// Query defines the gRPC querier service.
+service Query {
+  // Account returns account details based on address.
+  rpc Account(QueryAccountRequest) returns (QueryAccountResponse);
+  
+  // Params queries all parameters.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+}
+
+// QueryParamsRequest is the request type for the Query/Params RPC method.
+message QueryParamsRequest {}
+
+// QueryParamsResponse is the response type for the Query/Params RPC method.
+message QueryParamsResponse {
+  // params defines the parameters of the module.
+  Params params = 1;
+}
+
+// Params defines the parameters for the auth module.
+message Params {
+  uint64 max_memo_characters = 1;
+  uint64 tx_sig_limit = 2;
+  uint64 tx_size_cost_per_byte = 3;
+  uint64 sig_verify_cost_ed25519 = 4;
+  uint64 sig_verify_cost_secp256k1 = 5;
+}

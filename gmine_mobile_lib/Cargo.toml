@@ -1,0 +1,73 @@
+[package]
+name = "gmine_mobile"
+version = "1.0.0"
+edition = "2021"
+
+
+[lib]
+name = "gmine_mobile"
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+# Android JNI
+jni = "0.21"
+
+# Logging
+log = "0.4"
+android_logger = "0.13"
+
+# Mining
+drillx = { git = "https://github.com/Gelotto/gmine-vendor", tag = "v1.0.0", features = ["portable"] }
+equix = { git = "https://github.com/Gelotto/gmine-vendor", tag = "v1.0.0", features = ["portable"] }
+blake2 = "0.10"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Utilities
+hex = "0.4"
+base64 = "0.21"
+anyhow = "1.0"
+zeroize = { version = "1.6", features = ["derive"] }
+
+# Wallet functionality
+bip39 = "2.0"
+bip32 = "0.5"
+secp256k1 = { version = "0.28", features = ["recovery"] }
+bech32 = "0.11"
+sha2 = "0.10"
+ripemd = "0.1"
+getrandom = "0.2"
+rand = "0.8"
+
+# Crypto for EIP-712
+k256 = { version = "0.13", features = ["ecdsa", "ecdsa-core"] }
+sha3 = "0.10"
+tiny-keccak = { version = "2.0", features = ["keccak"] }
+alloy-sol-types = "0.7"
+alloy-primitives = "0.7"
+
+# HTTP client for blockchain  
+reqwest = { version = "0.11", default-features = false, features = ["json", "blocking", "rustls-tls"] }
+ureq = { version = "2.9", features = ["json"] }  # Temporary - to be removed when old files are deleted
+
+# Async runtime (needed for reqwest)
+tokio = { version = "1", features = ["rt", "macros", "time"] }
+
+# Protobuf support for Web3Extension
+prost = "0.12"
+prost-types = "0.12"
+cosmos-sdk-proto = { version = "0.20", features = ["cosmwasm"] }
+injective-protobuf = "0.2.2"
+
+[[bin]]
+name = "test_address_derivation"
+path = "src/bin/test_address_derivation.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

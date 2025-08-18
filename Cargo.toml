@@ -1,0 +1,106 @@
+[workspace]
+exclude = ["vendor"]
+
+[package]
+name = "gmine_miner"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "gmine_miner"
+path = "src/lib.rs"
+
+[[bin]]
+name = "gmine_miner"
+path = "src/main.rs"
+
+[[bin]]
+name = "test_queries"
+path = "src/bin/test_queries.rs"
+
+[[bin]]
+name = "test_wallet_comprehensive"
+path = "src/bin/test_wallet_comprehensive.rs"
+
+[[bin]]
+name = "test_accounts_comprehensive"
+path = "src/bin/test_accounts_comprehensive.rs"
+
+[[bin]]
+name = "test_balances_comprehensive"
+path = "src/bin/test_balances_comprehensive.rs"
+
+[[bin]]
+name = "derive_test_addresses"
+path = "src/bin/derive_test_addresses.rs"
+
+[[bin]]
+name = "test_rust_signer_proto"
+path = "src/bin/test_rust_signer_proto.rs"
+[[bin]]
+name = "test_wallet_derivation"
+path = "src/bin/test_wallet_derivation.rs"
+
+[dependencies]
+# Core dependencies
+tokio = { version = "1.40", features = ["full"] }
+rayon = "1.10"
+anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+clap = { version = "4.5", features = ["derive", "env"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+log = "0.4"
+env_logger = "0.11"
+
+# Chain interaction dependencies
+tonic = { version = "0.11", features = ["tls", "tls-roots"] }
+reqwest = { version = "0.11", features = ["json"] }
+prost = "0.12"
+prost-types = "0.12"
+
+# Crypto
+sha2 = "0.10"
+sha3 = "0.10"
+tiny-keccak = { version = "2.0", features = ["keccak"] }
+blake2 = "0.10"
+rand = "0.8"
+rand_chacha = "0.3"
+hex = "0.4"
+secp256k1 = { version = "0.28", features = ["recovery", "rand-std"] }
+bip39 = "2.0"
+bip32 = "0.5"
+ripemd = "0.1"
+bech32 = "0.11"
+base64 = "0.22"
+zeroize = { version = "1.7", features = ["derive"] }
+hmac = "0.12"
+
+# State management (temporarily disabled for local testing)
+# sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "sqlite"] }
+
+# TUI (for later phases - temporarily disabled)
+# ratatui = "0.26"
+# crossterm = "0.27"
+
+# Performance monitoring
+sysinfo = "0.30"
+num_cpus = "1.16"
+
+# Telemetry dependencies
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# drillx integration
+drillx = { git = "https://github.com/Gelotto/gmine-vendor", tag = "v1.0.0", features = ["portable"] }
+equix = { git = "https://github.com/Gelotto/gmine-vendor", tag = "v1.0.0", features = ["portable"] }
+
+# Mobile crate for Rust EIP-712 signing
+gmine_mobile = { path = "./gmine_mobile_lib" }
+
+[build-dependencies]
+tonic-build = "0.11"
+prost-build = "0.12"

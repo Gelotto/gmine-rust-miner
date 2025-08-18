@@ -1,0 +1,179 @@
+syntax = "proto3";
+package cosmos.tx.v1beta1;
+
+import "cosmos/base/v1beta1/coin_simple.proto";
+import "cosmos/tx/v1beta1/tx_simple.proto";
+
+// Service defines a gRPC service for interacting with transactions.
+service Service {
+  // Simulate simulates executing a transaction for estimating gas usage.
+  rpc Simulate(SimulateRequest) returns (SimulateResponse);
+  
+  // BroadcastTx broadcast transaction.
+  rpc BroadcastTx(BroadcastTxRequest) returns (BroadcastTxResponse);
+  
+  // GetTx fetches a tx by hash.
+  rpc GetTx(GetTxRequest) returns (GetTxResponse);
+}
+
+// SimulateRequest is the request type for the Service.Simulate
+// RPC method.
+message SimulateRequest {
+  // tx is the transaction to simulate.
+  // Deprecated. Send raw tx bytes instead.
+  Tx tx = 1 [deprecated = true];
+  
+  // tx_bytes is the raw transaction.
+  //
+  // Since: cosmos-sdk 0.43
+  bytes tx_bytes = 2;
+}
+
+// SimulateResponse is the response type for the
+// Service.SimulateRPC method.
+message SimulateResponse {
+  // gas_info is the information about gas used in the simulation.
+  GasInfo gas_info = 1;
+  
+  // result is the result of the simulation.
+  Result result = 2;
+}
+
+// GasInfo defines tx execution gas context.
+message GasInfo {
+  // gas_wanted is the maximum units of work we allow this tx to perform.
+  uint64 gas_wanted = 1;
+  
+  // gas_used is the amount of gas actually consumed.
+  uint64 gas_used = 2;
+}
+
+// Result is the union of ResponseFormat and ResponseCheckTx.
+message Result {
+  // Data is any data returned from message or handler execution. It MUST be
+  // length prefixed in order to separate data from multiple message executions.
+  bytes data = 1;
+  
+  // Log contains the log information from message or handler execution.
+  string log = 2;
+  
+  // Events contains a slice of Event objects that were emitted during message
+  // or handler execution.
+  repeated Event events = 3;
+}
+
+// Event allows application developers to attach additional information to
+// ResponseBeginBlock, ResponseEndBlock, ResponseCheckTx and ResponseDeliverTx.
+message Event {
+  string type = 1;
+  repeated EventAttribute attributes = 2;
+}
+
+// EventAttribute is a single key-value pair, associated with an event.
+message EventAttribute {
+  string key = 1;
+  string value = 2;
+  bool index = 3;
+}
+
+// BroadcastTxRequest is the request type for the Service.BroadcastTx
+// RPC method.
+message BroadcastTxRequest {
+  // tx_bytes is the raw transaction.
+  bytes tx_bytes = 1;
+  
+  // mode is the broadcasting mode.
+  BroadcastMode mode = 2;
+}
+
+// BroadcastMode specifies the broadcast mode for the TxService.Broadcast RPC method.
+enum BroadcastMode {
+  // zero-value for mode ordering
+  BROADCAST_MODE_UNSPECIFIED = 0;
+  
+  // BROADCAST_MODE_BLOCK defines a tx broadcasting mode where the client waits for
+  // the tx to be committed in a block.
+  BROADCAST_MODE_BLOCK = 1;
+  
+  // BROADCAST_MODE_SYNC defines a tx broadcasting mode where the client waits for
+  // a CheckTx execution response only.
+  BROADCAST_MODE_SYNC = 2;
+  
+  // BROADCAST_MODE_ASYNC defines a tx broadcasting mode where the client returns
+  // immediately.
+  BROADCAST_MODE_ASYNC = 3;
+}
+
+// BroadcastTxResponse is the response type for the
+// Service.BroadcastTx method.
+message BroadcastTxResponse {
+  // tx_response is the queried TxResponses.
+  TxResponse tx_response = 1;
+}
+
+// TxResponse defines a structure containing relevant tx data and metadata. The
+// tags are stringified and the log is JSON decoded.
+message TxResponse {
+  // The block height
+  int64 height = 1;
+  
+  // The transaction hash.
+  string txhash = 2;
+  
+  // Namespace for the Code
+  string codespace = 3;
+  
+  // Response code.
+  uint32 code = 4;
+  
+  // Result bytes, if any.
+  string data = 5;
+  
+  // The output of the application's logger (raw string). May be
+  // non-deterministic.
+  string raw_log = 6;
+  
+  // The output of the application's logger (typed). May be non-deterministic.
+  string logs = 7;
+  
+  // Additional information. May be non-deterministic.
+  string info = 8;
+  
+  // Amount of gas requested for transaction.
+  int64 gas_wanted = 9;
+  
+  // Amount of gas consumed by transaction.
+  int64 gas_used = 10;
+  
+  // The request transaction bytes.
+  Any tx = 11;
+  
+  // Time of the previous block. For heights > 1, it's the weighted median of
+  // the timestamps of the valid votes in the block.LastCommit. For height == 1,
+  // it's genesis time.
+  string timestamp = 12;
+  
+  // Events defines all the events emitted by processing a transaction. Note,
+  // these events include those emitted by processing all the messages and those
+  // emitted from the ante handler. Whereas Logs contains the events, with
+  // additional metadata, emitted only by processing the messages.
+  //
+  // Since: cosmos-sdk 0.42.11, 0.44.5, 0.45
+  repeated Event events = 13;
+}
+
+// GetTxRequest is the request type for the Service.GetTx
+// RPC method.
+message GetTxRequest {
+  // hash is the tx hash to query, encoded as a hex string.
+  string hash = 1;
+}
+
+// GetTxResponse is the response type for the Service.GetTx method.
+message GetTxResponse {
+  // tx is the queried transaction.
+  Tx tx = 1;
+  
+  // tx_response is the queried TxResponses.
+  TxResponse tx_response = 2;
+}

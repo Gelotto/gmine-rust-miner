@@ -1,0 +1,43 @@
+syntax = "proto3";
+package cosmos.bank.v1beta1;
+
+import "cosmos/base/v1beta1/coin_simple.proto";
+
+option go_package = "github.com/cosmos/cosmos-sdk/x/bank/types";
+
+// Query defines the gRPC querier service.
+service Query {
+  // Balance queries the balance of a single coin for a single account.
+  rpc Balance(QueryBalanceRequest) returns (QueryBalanceResponse);
+  
+  // AllBalances queries the balance of all coins for a single account.
+  rpc AllBalances(QueryAllBalancesRequest) returns (QueryAllBalancesResponse);
+}
+
+// QueryBalanceRequest is the request type for the Query/Balance RPC method.
+message QueryBalanceRequest {
+  // address is the address to query balances for.
+  string address = 1;
+
+  // denom is the coin denom to query balances for.
+  string denom = 2;
+}
+
+// QueryBalanceResponse is the response type for the Query/Balance RPC method.
+message QueryBalanceResponse {
+  // balance is the balance of the coin.
+  cosmos.base.v1beta1.Coin balance = 1;
+}
+
+// QueryAllBalancesRequest is the request type for the Query/AllBalances RPC method.
+message QueryAllBalancesRequest {
+  // address is the address to query balances for.
+  string address = 1;
+}
+
+// QueryAllBalancesResponse is the response type for the Query/AllBalances RPC
+// method.
+message QueryAllBalancesResponse {
+  // balances is the balances of all the coins.
+  repeated cosmos.base.v1beta1.Coin balances = 1;
+}

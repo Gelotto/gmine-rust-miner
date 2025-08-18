@@ -1,0 +1,14 @@
+syntax = "proto3";
+package cosmos.base.v1beta1;
+
+// Simplified Coin definition without gogoproto dependencies
+message Coin {
+  string denom  = 1;
+  string amount = 2;
+}
+
+// DecCoin defines a token with a denomination and a decimal amount.
+message DecCoin {
+  string denom  = 1;
+  string amount = 2;
+}

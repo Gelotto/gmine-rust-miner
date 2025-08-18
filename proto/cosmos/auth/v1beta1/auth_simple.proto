@@ -1,0 +1,33 @@
+syntax = "proto3";
+package cosmos.auth.v1beta1;
+
+// BaseAccount defines a base account type.
+message BaseAccount {
+  string address = 1;
+  Any pub_key = 2;
+  uint64 account_number = 3;
+  uint64 sequence = 4;
+}
+
+// Any contains an arbitrary serialized protocol buffer message along with a
+// URL that describes the type of the serialized message.
+message Any {
+  // A URL/resource name that uniquely identifies the type of the serialized
+  // protocol buffer message.
+  string type_url = 1;
+  
+  // Must be a valid serialized protocol buffer of the above specified type.
+  bytes value = 2;
+}
+
+// QueryAccountRequest is the request type for the Query/Account RPC method.
+message QueryAccountRequest {
+  // address defines the address to query for.
+  string address = 1;
+}
+
+// QueryAccountResponse is the response type for the Query/Account RPC method.
+message QueryAccountResponse {
+  // account defines the account of the corresponding address.
+  Any account = 1;
+}
