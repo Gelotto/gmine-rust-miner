@@ -37,11 +37,12 @@ jobs:
             os: ubuntu-latest
             archive: gmine-x86_64-unknown-linux-gnu.tar.gz
           
-          # Linux ARM64
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            archive: gmine-aarch64-unknown-linux-gnu.tar.gz
-            cross: true
+          # Linux ARM64 - Temporarily disabled due to OpenSSL cross-compilation issues
+          # Users on ARM64 Linux can use --from-source flag
+          # - target: aarch64-unknown-linux-gnu
+          #   os: ubuntu-latest
+          #   archive: gmine-aarch64-unknown-linux-gnu.tar.gz
+          #   cross: true
           
           # macOS x86_64
           - target: x86_64-apple-darwin
@@ -67,6 +68,12 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
+
+      - name: Install cross-compilation dependencies
+        if: matrix.cross && startsWith(matrix.target, 'aarch64-unknown-linux')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
 
       - name: Install cross (if needed)
         if: matrix.cross
