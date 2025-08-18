@@ -62,6 +62,15 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install Protobuf Compiler
+        run: |
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y protobuf-compiler
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            brew install protobuf
+          fi
+
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
