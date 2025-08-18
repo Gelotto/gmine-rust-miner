@@ -1,6 +1,3 @@
-[workspace]
-exclude = ["vendor"]
-
 [package]
 name = "gmine_miner"
 version = "0.1.0"
