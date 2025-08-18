@@ -162,7 +162,9 @@ main() {
             printf "Run setup wizard? [Y/n] "
             read -r response
             
-            if [ -z "$response" ] || [ "${response:0:1}" = "y" ] || [ "${response:0:1}" = "Y" ]; then
+            case "$response" in
+                [yY]*|"")
+                    # User said yes or just pressed enter
                 say ""
                 say "Starting setup wizard..."
                 gmine init
@@ -175,10 +177,13 @@ main() {
                     say "To run as service: gmine service install"
                     say ""
                 fi
-            else
-                say ""
-                say "You can run setup later with: gmine init"
-            fi
+                    ;;
+                *)
+                    # User said no
+                    say ""
+                    say "You can run setup later with: gmine init"
+                    ;;
+            esac
         fi
     else
         # Non-interactive mode - show clear instructions
@@ -442,7 +447,9 @@ setup_path_interactive() {
     printf "Modify ${CONFIG_FILE} to add gmine to PATH? [Y/n] "
     read -r response
     
-    if [ -z "$response" ] || [ "${response:0:1}" = "y" ] || [ "${response:0:1}" = "Y" ]; then
+    case "$response" in
+        [yY]*|"")
+            # User said yes or just pressed enter
         # Check if PATH entry already exists (idempotent)
         if grep -q "/.gmine/bin" "${CONFIG_FILE}" 2>/dev/null; then
             say "✓ PATH entry already exists in ${CONFIG_FILE}"
@@ -463,15 +470,17 @@ setup_path_interactive() {
         say ""
         say "PATH has been configured!"
         say "Note: New terminals will have gmine in PATH automatically."
-    else
-        # User declined - show manual instructions
-        say ""
-        say "No problem! To add gmine to your PATH manually, run:"
-        say ""
-        say "  echo 'export PATH=\"\$HOME/.gmine/bin:\$PATH\"' >> ${CONFIG_FILE}"
-        say "  source ${CONFIG_FILE}"
-        say ""
-    fi
+            ;;
+        *)
+            # User declined - show manual instructions
+            say ""
+            say "No problem! To add gmine to your PATH manually, run:"
+            say ""
+            say "  echo 'export PATH=\"\$HOME/.gmine/bin:\$PATH\"' >> ${CONFIG_FILE}"
+            say "  source ${CONFIG_FILE}"
+            say ""
+            ;;
+    esac
 }
 
 # Detect shell configuration file
