@@ -14,6 +14,7 @@ use gmine_miner::{
 };
 use dialoguer::{Input, Password, Confirm};
 use serde::{Deserialize, Serialize};
+use bip39::Mnemonic;
 
 /// Main CLI structure with subcommands and backward compatibility
 #[derive(Parser, Debug)]
@@ -204,17 +205,24 @@ async fn cmd_init() -> Result<()> {
     println!("Enter your wallet mnemonic phrase (12 or 24 words)");
     println!("⚠️  WARNING: Use a NEW wallet for mining, not your main wallet!");
     
-    let mnemonic: String = Password::new()
+    let mnemonic_str: String = Password::new()
         .with_prompt("Mnemonic")
         .interact()?;
     
-    // Validate mnemonic
-    if mnemonic.split_whitespace().count() != 12 && mnemonic.split_whitespace().count() != 24 {
-        return Err(anyhow!("Invalid mnemonic: must be 12 or 24 words"));
+    // Validate mnemonic using BIP39
+    match Mnemonic::parse(&mnemonic_str) {
+        Ok(_) => {
+            // Valid mnemonic
+        }
+        Err(_) => {
+            return Err(anyhow!(
+                "Invalid mnemonic phrase. Please check for typos and ensure it is a valid BIP39 12 or 24-word phrase."
+            ));
+        }
     }
     
     // Derive and show wallet address
-    let wallet = InjectiveWallet::from_mnemonic_no_passphrase(&mnemonic)?;
+    let wallet = InjectiveWallet::from_mnemonic_no_passphrase(&mnemonic_str)?;
     println!("\n✅ Wallet address: {}", wallet.address);
     
     // Get CPU info and suggest workers
@@ -256,7 +264,7 @@ async fn cmd_init() -> Result<()> {
     // Create config
     let config = MinerConfig {
         mining: MiningConfig {
-            mnemonic: Some(mnemonic),
+            mnemonic: Some(mnemonic_str),
             workers: Some(workers),
             network: network.clone(),
             grpc_endpoint: None,
@@ -512,34 +520,79 @@ async fn cmd_logs(lines: usize, follow: bool) -> Result<()> {
 
 /// Show mining status
 async fn cmd_status() -> Result<()> {
-    let pid_path = get_config_dir()?.join("miner.pid");
-    
-    if !pid_path.exists() {
-        println!("❌ Miner is not running as a service");
-        return Ok(());
+    #[cfg(target_os = "linux")]
+    {
+        // Check systemd service status
+        let output = std::process::Command::new("systemctl")
+            .args(&["--user", "is-active", "gmine-miner.service"])
+            .output()?;
+        
+        let status = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        
+        match status.as_str() {
+            "active" => {
+                println!("✅ Miner service is running");
+                
+                // Get more details
+                let _ = std::process::Command::new("systemctl")
+                    .args(&["--user", "status", "gmine-miner.service", "--no-pager", "-n", "10"])
+                    .status();
+            }
+            "inactive" => {
+                println!("❌ Miner service is not running");
+                println!("\nTo start: gmine service start");
+            }
+            "failed" => {
+                println!("❌ Miner service has failed");
+                println!("\nCheck logs: gmine logs");
+                println!("To restart: gmine service stop && gmine service start");
+            }
+            _ => {
+                println!("⚠️  Miner service is not installed");
+                println!("\nTo install: gmine service install");
+            }
+        }
     }
     
-    let pid_str = fs::read_to_string(&pid_path)?;
-    let pid: i32 = pid_str.trim().parse()?;
-    
-    // Check if process is running
-    let running = std::process::Command::new("kill")
-        .arg("-0")
-        .arg(pid.to_string())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
-    
-    if running {
-        println!("✅ Miner is running (PID: {})", pid);
+    #[cfg(target_os = "macos")]
+    {
+        // Check launchd service status
+        let output = std::process::Command::new("launchctl")
+            .args(&["list", "com.gelotto.gmine-miner"])
+            .output();
         
-        // Show recent log entries
-        println!("\nRecent activity:");
-        let _ = cmd_logs(10, false).await;
-    } else {
-        println!("❌ Miner is not running (stale PID file)");
-        // Clean up stale PID file
-        let _ = fs::remove_file(pid_path);
+        match output {
+            Ok(output) if output.status.success() => {
+                let status_line = String::from_utf8_lossy(&output.stdout);
+                // Parse PID from output (format: "PID Status Label")
+                let parts: Vec<&str> = status_line.trim().split_whitespace().collect();
+                
+                if parts.len() >= 3 {
+                    let pid = parts[0];
+                    if pid != "-" {
+                        println!("✅ Miner service is running (PID: {})", pid);
+                    } else {
+                        println!("❌ Miner service is loaded but not running");
+                        println!("\nTo start: gmine service start");
+                    }
+                } else {
+                    println!("⚠️  Could not parse service status");
+                }
+                
+                // Show recent logs
+                println!("\nRecent activity:");
+                let _ = cmd_logs(10, false).await;
+            }
+            _ => {
+                println!("⚠️  Miner service is not installed");
+                println!("\nTo install: gmine service install");
+            }
+        }
+    }
+    
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    {
+        println!("Service status not supported on this platform");
     }
     
     Ok(())
@@ -572,6 +625,19 @@ async fn service_install_systemd() -> Result<()> {
         return Err(anyhow!("Please run as a regular user, not root"));
     }
     
+    // Use canonical installation path
+    let home_dir = dirs::home_dir()
+        .ok_or_else(|| anyhow!("Could not find home directory"))?;
+    let exe_path = home_dir.join(".gmine/bin/gmine");
+    
+    // Verify binary exists at expected location
+    if !exe_path.exists() {
+        return Err(anyhow!(
+            "GMINE binary not found at {}. Please ensure it is installed correctly using the install script.",
+            exe_path.display()
+        ));
+    }
+    
     let service_content = format!(
         r#"[Unit]
 Description=GMINE Miner
@@ -589,7 +655,7 @@ StandardError=append:{}/.gmine/miner.log
 [Install]
 WantedBy=default.target
 "#,
-        std::env::current_exe()?.display(),
+        exe_path.display(),
         std::env::var("USER")?,
         std::env::var("HOME")?,
         std::env::var("HOME")?
@@ -625,6 +691,19 @@ WantedBy=default.target
 async fn service_install_launchd() -> Result<()> {
     println!("Installing launchd service...");
     
+    // Use canonical installation path
+    let home_dir = dirs::home_dir()
+        .ok_or_else(|| anyhow!("Could not find home directory"))?;
+    let exe_path = home_dir.join(".gmine/bin/gmine");
+    
+    // Verify binary exists at expected location
+    if !exe_path.exists() {
+        return Err(anyhow!(
+            "GMINE binary not found at {}. Please ensure it is installed correctly using the install script.",
+            exe_path.display()
+        ));
+    }
+    
     let plist_content = format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -647,7 +726,7 @@ async fn service_install_launchd() -> Result<()> {
     <string>{}/.gmine/miner.log</string>
 </dict>
 </plist>"#,
-        std::env::current_exe()?.display(),
+        exe_path.display(),
         std::env::var("HOME")?,
         std::env::var("HOME")?
     );
