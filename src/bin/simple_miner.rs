@@ -648,7 +648,6 @@ Type=simple
 ExecStart={} mine
 Restart=always
 RestartSec=30
-User={}
 StandardOutput=append:{}/.gmine/miner.log
 StandardError=append:{}/.gmine/miner.log
 
@@ -656,7 +655,6 @@ StandardError=append:{}/.gmine/miner.log
 WantedBy=default.target
 "#,
         exe_path.display(),
-        std::env::var("USER")?,
         std::env::var("HOME")?,
         std::env::var("HOME")?
     );
