@@ -249,7 +249,7 @@ install_from_binary() {
     trap "rm -rf $TMP_DIR" EXIT
     
     # Download archive and checksum
-    ARCHIVE_PATH="${TMP_DIR}/gmine.tar.gz"
+    ARCHIVE_PATH="${TMP_DIR}/${ARCHIVE_NAME}"
     CHECKSUM_PATH="${TMP_DIR}/${ARCHIVE_NAME}.sha256"
     
     if ! curl --proto '=https' --tlsv1.2 -sSfL "${DOWNLOAD_URL}" -o "${ARCHIVE_PATH}"; then
