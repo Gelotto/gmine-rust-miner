@@ -126,9 +126,9 @@ main() {
     
     # Check for existing installation
     if [ -f "${EXE}" ]; then
-        say "An existing 'gmine' binary was found at ${EXE}."
-        say "To reinstall, please remove it first: rm ${EXE}"
-        exit 1
+        say "An existing GMINE installation was found at ${EXE}"
+        say "This will be updated to the latest version."
+        say ""
     fi
     
     # Create directories
