@@ -8,16 +8,29 @@ This repository contains the production mining client (`simple_miner`) for minin
 
 ## 🚀 Quick Install
 
-### Linux/macOS (Recommended)
+### Linux/macOS - One-Liner (Non-Interactive)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Gelotto/gmine-rust-miner/main/install.sh | sh
 ```
 
-The installer will:
-1. Download and install the `gmine` command to `~/.gmine/bin`
-2. Prompt you to run the interactive setup wizard
-3. Configure your wallet and mining settings
-4. Show you how to add gmine to your PATH
+This installs gmine and shows clear instructions for getting started.
+
+### Linux/macOS - Interactive Installation (Recommended)
+For automatic PATH setup and guided configuration:
+```bash
+# Download the installer
+curl -fsSL https://raw.githubusercontent.com/Gelotto/gmine-rust-miner/main/install.sh -o install.sh
+chmod +x install.sh
+
+# Run it (interactive mode)
+./install.sh
+```
+
+The interactive installer will:
+1. Install `gmine` to `~/.gmine/bin`
+2. Ask to configure your PATH automatically
+3. Offer to run the setup wizard
+4. Get you mining in minutes!
 
 ### Other Installation Methods
 - **Build from source**: `curl -fsSL https://raw.githubusercontent.com/Gelotto/gmine-rust-miner/main/install.sh | sh -s -- --from-source`
@@ -63,33 +76,51 @@ Before you begin, ensure you have the following:
 
 ## Quick Start: Start Mining in 5 Minutes
 
-1. **Install and Setup:**
+### Option 1: Interactive Installation (Easiest)
+```bash
+# Download and run installer interactively
+curl -fsSL https://raw.githubusercontent.com/Gelotto/gmine-rust-miner/main/install.sh -o install.sh && chmod +x install.sh && ./install.sh
+```
+The installer will configure PATH and run the setup wizard for you.
+
+### Option 2: Manual Steps
+1. **Install with one-liner:**
    ```bash
    curl -fsSL https://raw.githubusercontent.com/Gelotto/gmine-rust-miner/main/install.sh | sh
    ```
-   The installer will guide you through setup. If you skip setup, run `gmine init` later.
 
-2. **Start Mining:**
+2. **Add to PATH (copy & paste):**
+   ```bash
+   echo 'export PATH="$HOME/.gmine/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+   ```
+
+3. **Run setup wizard:**
+   ```bash
+   gmine init
+   ```
+
+4. **Start Mining:**
    ```bash
    gmine mine
    ```
-   This uses settings from `~/.gmine/config.toml` created during setup.
 
-3. **Run as System Service (Recommended):**
-   ```bash
-   gmine service install
-   gmine service start
-   gmine service status
-   ```
+### After Installation
 
-4. **Monitor Your Mining:**
-   ```bash
-   gmine logs -f        # Follow logs in real-time
-   gmine status         # Check if miner is running
-   ```
+**Run as System Service (Recommended):**
+```bash
+gmine service install
+gmine service start
+gmine service status
+```
 
-5. **Get testnet INJ tokens:**
-   Visit https://testnet.faucet.injective.network/ to get free testnet tokens
+**Monitor Your Mining:**
+```bash
+gmine logs -f        # Follow logs in real-time
+gmine status         # Check if miner is running
+```
+
+**Get testnet INJ tokens:**
+Visit https://testnet.faucet.injective.network/ to get free testnet tokens
 
 **⚠️ WARNING**: Always use a NEW wallet for mining, not your main wallet!
 
