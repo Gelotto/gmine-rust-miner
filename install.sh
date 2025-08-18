@@ -145,58 +145,71 @@ main() {
         install_from_source
     fi
     
-    # Setup PATH
-    setup_path
-    
     # Success message
     say ""
     say "✅ GMINE Rust Miner installed successfully!"
     say ""
     
-    # Offer to run setup wizard
+    # Setup PATH - with "Ask, Inform, and Guide" approach
     if [ -t 0 ] && [ -t 1 ]; then
-        # Only prompt if running interactively (stdin and stdout are terminals)
-        say "Would you like to set up your miner now? (recommended)"
-        printf "Run setup wizard? [Y/n] "
-        read -r response
+        # Interactive mode - offer to configure PATH automatically
+        setup_path_interactive
         
-        # Default to yes if empty or starts with y/Y
-        if [ -z "$response" ] || [ "${response:0:1}" = "y" ] || [ "${response:0:1}" = "Y" ]; then
+        # After PATH setup, offer to run init
+        if command -v gmine >/dev/null 2>&1; then
             say ""
-            say "Starting setup wizard..."
-            "${EXE}" init
+            say "Would you like to set up your miner now? (recommended)"
+            printf "Run setup wizard? [Y/n] "
+            read -r response
             
-            # After successful init, show additional info
-            if [ $? -eq 0 ]; then
+            if [ -z "$response" ] || [ "${response:0:1}" = "y" ] || [ "${response:0:1}" = "Y" ]; then
                 say ""
-                say "🎉 Setup complete!"
+                say "Starting setup wizard..."
+                gmine init
+                
+                if [ $? -eq 0 ]; then
+                    say ""
+                    say "🎉 Setup complete!"
+                    say ""
+                    say "To start mining: gmine mine"
+                    say "To run as service: gmine service install"
+                    say ""
+                fi
+            else
                 say ""
-                say "To start mining: ${INSTALL_NAME} mine"
-                say "To run as service: ${INSTALL_NAME} service install"
-                say ""
-                say "Get testnet INJ tokens at:"
-                say "  https://testnet.faucet.injective.network/"
+                say "You can run setup later with: gmine init"
             fi
-        else
-            say ""
-            say "You can run setup later with: ${INSTALL_NAME} init"
-            say ""
-            say "To get started:"
-            say "  ${INSTALL_NAME} --help"
-            say ""
-            say "Get testnet INJ tokens at:"
-            say "  https://testnet.faucet.injective.network/"
         fi
     else
-        # Non-interactive installation
-        say "To set up your miner, run:"
-        say "  ${INSTALL_NAME} init"
+        # Non-interactive mode - show clear instructions
+        say "=================================================================="
+        say "                        QUICK START GUIDE"
+        say "=================================================================="
         say ""
-        say "To get started:"
-        say "  ${INSTALL_NAME} --help"
+        say "Step 1: Add gmine to your PATH (copy & paste this command)"
+        say "------------------------------------------------------------------"
+        say "  echo 'export PATH=\"\$HOME/.gmine/bin:\$PATH\"' >> ~/.bashrc && source ~/.bashrc"
         say ""
-        say "Get testnet INJ tokens at:"
-        say "  https://testnet.faucet.injective.network/"
+        say "Step 2: Set up your miner with interactive wizard"
+        say "------------------------------------------------------------------"
+        say "  gmine init"
+        say ""
+        say "Step 3: Start mining!"
+        say "------------------------------------------------------------------"
+        say "  gmine mine"
+        say ""
+        say "=================================================================="
+        say "                        WHAT GMINE CAN DO"
+        say "=================================================================="
+        say "  gmine init       - Interactive setup wizard"
+        say "  gmine mine       - Start mining for POWER tokens"
+        say "  gmine service    - Install/manage as system service"
+        say "  gmine status     - Check if miner is running"
+        say "  gmine logs -f    - View real-time mining logs"
+        say "  gmine --help     - See all available commands"
+        say ""
+        say "Get testnet INJ tokens: https://testnet.faucet.injective.network/"
+        say "=================================================================="
     fi
 }
 
@@ -356,7 +369,7 @@ install_from_source() {
     fi
 }
 
-# Setup PATH
+# Setup PATH - Manual instructions (used as fallback)
 setup_path() {
     # Check if already in PATH
     if echo "$PATH" | grep -q "${BIN_DIR}"; then
@@ -408,6 +421,82 @@ setup_path() {
     say "  source ${CONFIG_FILE}"
     say ""
     say "Or simply open a new terminal window."
+}
+
+# Setup PATH - Interactive mode with automatic configuration
+setup_path_interactive() {
+    # Check if already in PATH
+    if echo "$PATH" | grep -q "${BIN_DIR}"; then
+        say "✓ gmine is already in your PATH"
+        return
+    fi
+    
+    # Detect shell and config file
+    detect_shell_config
+    
+    say "gmine has been installed to: ${BIN_DIR}"
+    say ""
+    say "To use gmine, we need to add it to your PATH."
+    say "We can do this automatically by modifying: ${CONFIG_FILE}"
+    say ""
+    printf "Modify ${CONFIG_FILE} to add gmine to PATH? [Y/n] "
+    read -r response
+    
+    if [ -z "$response" ] || [ "${response:0:1}" = "y" ] || [ "${response:0:1}" = "Y" ]; then
+        # Check if PATH entry already exists (idempotent)
+        if grep -q "/.gmine/bin" "${CONFIG_FILE}" 2>/dev/null; then
+            say "✓ PATH entry already exists in ${CONFIG_FILE}"
+        else
+            # Add PATH configuration
+            {
+                echo ""
+                echo "# Added by GMINE installer"
+                echo "export PATH=\"\$HOME/.gmine/bin:\$PATH\""
+            } >> "${CONFIG_FILE}"
+            
+            say "✓ Added gmine to PATH in ${CONFIG_FILE}"
+        fi
+        
+        # Set PATH for current session
+        export PATH="$HOME/.gmine/bin:$PATH"
+        
+        say ""
+        say "PATH has been configured!"
+        say "Note: New terminals will have gmine in PATH automatically."
+    else
+        # User declined - show manual instructions
+        say ""
+        say "No problem! To add gmine to your PATH manually, run:"
+        say ""
+        say "  echo 'export PATH=\"\$HOME/.gmine/bin:\$PATH\"' >> ${CONFIG_FILE}"
+        say "  source ${CONFIG_FILE}"
+        say ""
+    fi
+}
+
+# Detect shell configuration file
+detect_shell_config() {
+    # Try to detect the shell config file
+    if [ -n "$ZSH_VERSION" ]; then
+        CONFIG_FILE="$HOME/.zshrc"
+    elif [ -n "$BASH_VERSION" ]; then
+        # Prefer .bashrc for interactive shells
+        if [ -f "$HOME/.bashrc" ]; then
+            CONFIG_FILE="$HOME/.bashrc"
+        else
+            CONFIG_FILE="$HOME/.bash_profile"
+        fi
+    elif [ -n "$FISH_VERSION" ]; then
+        CONFIG_FILE="$HOME/.config/fish/config.fish"
+    else
+        # Default fallback
+        CONFIG_FILE="$HOME/.profile"
+    fi
+    
+    # Ensure the file exists
+    if [ ! -f "$CONFIG_FILE" ]; then
+        touch "$CONFIG_FILE"
+    fi
 }
 
 # Run main
