@@ -13,7 +13,11 @@ This repository contains the production mining client (`simple_miner`) for minin
 curl -fsSL https://raw.githubusercontent.com/Gelotto/gmine-rust-miner/main/install.sh | sh
 ```
 
-This will install the `gmine` command to `~/.gmine/bin`. The installer will provide instructions for adding it to your PATH.
+The installer will:
+1. Download and install the `gmine` command to `~/.gmine/bin`
+2. Prompt you to run the interactive setup wizard
+3. Configure your wallet and mining settings
+4. Show you how to add gmine to your PATH
 
 ### Other Installation Methods
 - **Build from source**: `curl -fsSL https://raw.githubusercontent.com/Gelotto/gmine-rust-miner/main/install.sh | sh -s -- --from-source`
@@ -59,49 +63,72 @@ Before you begin, ensure you have the following:
 
 ## Quick Start: Start Mining in 5 Minutes
 
-1. **Install GMINE:**
+1. **Install and Setup:**
    ```bash
    curl -fsSL https://raw.githubusercontent.com/Gelotto/gmine-rust-miner/main/install.sh | sh
    ```
-   Follow the instructions to add `~/.gmine/bin` to your PATH.
+   The installer will guide you through setup. If you skip setup, run `gmine init` later.
 
-2. **Start mining with test wallet (for testing only):**
+2. **Start Mining:**
    ```bash
-   gmine --workers 4
+   gmine mine
+   ```
+   This uses settings from `~/.gmine/config.toml` created during setup.
+
+3. **Run as System Service (Recommended):**
+   ```bash
+   gmine service install
+   gmine service start
+   gmine service status
    ```
 
-3. **For production mining with your own wallet:**
+4. **Monitor Your Mining:**
    ```bash
-   gmine --mnemonic "your twelve word mnemonic phrase here" --workers 4
+   gmine logs -f        # Follow logs in real-time
+   gmine status         # Check if miner is running
    ```
 
-   **⚠️ WARNING**: Use a NEW wallet for mining, not your main wallet!
-
-4. **Get testnet INJ tokens:**
+5. **Get testnet INJ tokens:**
    Visit https://testnet.faucet.injective.network/ to get free testnet tokens
+
+**⚠️ WARNING**: Always use a NEW wallet for mining, not your main wallet!
 
 ---
 
 ## Configuration
 
-The miner accepts the following command-line arguments:
+### Interactive Setup (Recommended)
+```bash
+gmine init
+```
 
-| Argument | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `--mnemonic` / `-m` | Wallet mnemonic phrase (12 or 24 words) | Test mnemonic | No (but recommended) |
-| `--workers` / `-w` | Number of CPU threads for mining | 1 | No |
-| `--network` / `-n` | Network to mine on (`testnet` or `mainnet`) | `testnet` | No |
-| `--duration` / `-d` | Mining duration in seconds | Unlimited | No |
-| `--rust-signer` / `-r` | Use native Rust EIP-712 signer | `false` (for mine.sh) | No |
-| `--verbose` / `-v` | Enable debug logging | `false` | No |
+This will guide you through:
+- Wallet setup (secure mnemonic entry)
+- CPU core detection and worker configuration
+- Network selection (testnet/mainnet)
+- Signer selection (Rust native vs Node.js bridge)
+
+Configuration is saved to `~/.gmine/config.toml` with 0600 permissions.
+
+### Command-Line Arguments
+
+All settings can be overridden via command-line:
+
+| Argument | Description | Default | 
+|----------|-------------|---------|
+| `--mnemonic` | Wallet mnemonic phrase | From config |
+| `--workers` | Number of CPU threads | cores-1 |
+| `--network` | Network (`testnet`/`mainnet`) | `testnet` |
+| `--use-rust-signer` | Use native Rust signer | From config |
+| `--debug` | Enable debug logging | `false` |
 
 ### Environment Variables
-
-You can also configure the miner using environment variables:
 
 - `MNEMONIC`: Wallet mnemonic phrase
 - `GMINE_WORKERS`: Number of mining workers
 - `GMINE_NETWORK`: Network selection
+
+Priority: CLI args > Environment vars > Config file
 
 ---
 
@@ -129,27 +156,37 @@ GMINE mining requires EIP-712 signatures for submitting solutions. This reposito
 
 ### Running with Native Rust Signer (Recommended)
 
-After installation via the one-liner, use the `gmine` command:
-
 ```bash
-# Basic usage with test wallet
-gmine
+# If you've run 'gmine init', just start mining:
+gmine mine
 
-# Production mining with your wallet and 4 workers  
-gmine --mnemonic "your mnemonic phrase" --workers 4
+# Override config settings:
+gmine mine --workers 8 --debug
 
-# Mine for 1 hour with debug logging
-gmine --duration 3600 --verbose
+# Run without setup (provide all options):
+gmine mine --mnemonic "your mnemonic phrase" --workers 4 --use-rust-signer
 
-# Using environment variables
+# Using environment variables:
 export MNEMONIC="your mnemonic phrase"
-export GMINE_WORKERS=4
-gmine
+gmine mine
 ```
 
-If you cloned the repository manually, use the provided scripts:
+### System Service Management
+
 ```bash
-./mine-rust.sh --mnemonic "your mnemonic phrase" --workers 4
+# Install as system service (systemd on Linux, launchd on macOS)
+gmine service install
+
+# Service control commands
+gmine service start      # Start mining in background
+gmine service stop       # Stop mining
+gmine service status     # Check if running
+gmine service uninstall  # Remove service
+
+# View logs
+gmine logs               # Show recent logs
+gmine logs -f            # Follow logs (like tail -f)
+gmine logs -n 100        # Show last 100 lines
 ```
 
 ### Running with Node.js Bridge (Legacy)

@@ -34,9 +34,14 @@ path = "src/bin/derive_test_addresses.rs"
 [[bin]]
 name = "test_rust_signer_proto"
 path = "src/bin/test_rust_signer_proto.rs"
+
 [[bin]]
 name = "test_wallet_derivation"
 path = "src/bin/test_wallet_derivation.rs"
+
+[[bin]]
+name = "simple_miner"
+path = "src/bin/simple_miner.rs"
 
 [dependencies]
 # Core dependencies
@@ -86,6 +91,11 @@ hmac = "0.12"
 # Performance monitoring
 sysinfo = "0.30"
 num_cpus = "1.16"
+
+# Enhanced installer dependencies
+dialoguer = "0.11"
+dirs = "5.0"
+daemonize = "0.5"
 
 # Telemetry dependencies
 uuid = { version = "1.6", features = ["v4", "serde"] }

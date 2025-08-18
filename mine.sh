@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# GMINE Production Mining Script
-# Runs the GMINE mining client with EIP-712 bridge integration on Injective testnet
-# All data is REAL - no mock/fake data used
+# GMINE Mining Script with Node.js Bridge (Legacy)
+# For 24/7 mining, use mine-rust.sh or run: gmine mine --use-rust-signer
+# This script uses the Node.js bridge which has JavaScript precision limitations
 
 set -e
 

@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# GMINE Rust-Only Mining Script
-# This script runs the GMINE mining client with the native Rust EIP-712 signer
-# eliminating the dependency on the Node.js bridge service
+# GMINE Rust-Only Mining Script (Recommended for 24/7 Mining)
+# Uses native Rust EIP-712 signer - no JavaScript precision issues
 #
-# This is the production-ready replacement for mine.sh that uses 100% Rust implementation
+# This script is now just a wrapper for: gmine mine --use-rust-signer
+# For interactive setup, run: gmine init
 
 set -e
 

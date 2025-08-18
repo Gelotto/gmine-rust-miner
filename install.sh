@@ -16,8 +16,8 @@ set -e # Exit on error
 
 # --- Configuration ---
 GITHUB_REPO="Gelotto/gmine-rust-miner"
-BINARY_NAME="simple_miner"
-INSTALL_NAME="gmine"  # The name users will type
+BINARY_NAME="simple_miner"  # The actual binary built by cargo
+INSTALL_NAME="gmine"        # The name users will type
 
 # --- Helper Functions ---
 
@@ -152,14 +152,52 @@ main() {
     say ""
     say "✅ GMINE Rust Miner installed successfully!"
     say ""
-    say "To get started, run:"
-    say "  ${INSTALL_NAME} --help"
-    say ""
-    say "To start mining:"
-    say "  ${INSTALL_NAME} --mnemonic \"your wallet mnemonic\" --workers 4"
-    say ""
-    say "Get testnet INJ tokens at:"
-    say "  https://testnet.faucet.injective.network/"
+    
+    # Offer to run setup wizard
+    if [ -t 0 ] && [ -t 1 ]; then
+        # Only prompt if running interactively (stdin and stdout are terminals)
+        say "Would you like to set up your miner now? (recommended)"
+        printf "Run setup wizard? [Y/n] "
+        read -r response
+        
+        # Default to yes if empty or starts with y/Y
+        if [ -z "$response" ] || [ "${response:0:1}" = "y" ] || [ "${response:0:1}" = "Y" ]; then
+            say ""
+            say "Starting setup wizard..."
+            "${EXE}" init
+            
+            # After successful init, show additional info
+            if [ $? -eq 0 ]; then
+                say ""
+                say "🎉 Setup complete!"
+                say ""
+                say "To start mining: ${INSTALL_NAME} mine"
+                say "To run as service: ${INSTALL_NAME} service install"
+                say ""
+                say "Get testnet INJ tokens at:"
+                say "  https://testnet.faucet.injective.network/"
+            fi
+        else
+            say ""
+            say "You can run setup later with: ${INSTALL_NAME} init"
+            say ""
+            say "To get started:"
+            say "  ${INSTALL_NAME} --help"
+            say ""
+            say "Get testnet INJ tokens at:"
+            say "  https://testnet.faucet.injective.network/"
+        fi
+    else
+        # Non-interactive installation
+        say "To set up your miner, run:"
+        say "  ${INSTALL_NAME} init"
+        say ""
+        say "To get started:"
+        say "  ${INSTALL_NAME} --help"
+        say ""
+        say "Get testnet INJ tokens at:"
+        say "  https://testnet.faucet.injective.network/"
+    fi
 }
 
 # Show help message
