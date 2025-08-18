@@ -1,0 +1,33 @@
+{
+  "name": "bridge_nodejs",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@injectivelabs/networks": "^1.16.4",
+    "@injectivelabs/sdk-ts": "^1.16.4",
+    "@injectivelabs/ts-types": "^1.16.4",
+    "body-parser": "^2.2.0",
+    "dotenv": "^17.2.1",
+    "ethers": "^5.7.2",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@injectivelabs/utils": "^1.16.4",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.2.1",
+    "@types/uuid": "^10.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2",
+    "uuid": "^11.1.0"
+  }
+}

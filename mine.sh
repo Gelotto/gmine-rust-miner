@@ -141,25 +141,20 @@ validate_inputs() {
     
     # Based on the mining client requirements, we need to run from gmine-miner directory
     # for the bridge integration to work correctly
-    if [[ -f "./target/release/simple_miner" && -d "./gmine-bridge" && -d "./gmine-miner" ]]; then
-        # Running from project root - need to run from gmine-miner subdir
-        MINER_BINARY="../target/release/simple_miner"   # relative to gmine-miner dir
-        BRIDGE_BASE="../gmine-bridge/bridge_nodejs"     # relative to gmine-miner dir  
-        MINER_WORKDIR="./gmine-miner"
-    elif [[ -f "./target/release/simple_miner" && -d "../gmine-bridge" ]]; then
-        # Running from gmine-miner directory already
+    if [[ -f "./target/release/simple_miner" && -d "./bridge" ]]; then
+        # Running from gmine-rust-miner directory
         MINER_BINARY="./target/release/simple_miner"
-        BRIDGE_BASE="../gmine-bridge/bridge_nodejs"
+        BRIDGE_BASE="./bridge"     # bridge is now local to this repo
         MINER_WORKDIR="."
     else
         echo -e "${RED}Error: Mining binary or bridge not found${NC}"
         echo "Current directory: $(pwd)"
         echo "Binary check: ./target/release/simple_miner exists: $(test -f './target/release/simple_miner' && echo 'YES' || echo 'NO')"
-        echo "Bridge check: ./gmine-bridge exists: $(test -d './gmine-bridge' && echo 'YES' || echo 'NO')"
+        echo "Bridge check: ./bridge exists: $(test -d './bridge' && echo 'YES' || echo 'NO')"
         echo "Miner dir check: ./gmine-miner exists: $(test -d './gmine-miner' && echo 'YES' || echo 'NO')"
         echo ""
         echo "Please run: cargo build --release --bin simple_miner"
-        echo "And ensure bridge is built: cd gmine-bridge/bridge_nodejs && npm run build"
+        echo "And ensure bridge is built: cd bridge && npm run build"
         exit 1
     fi
     
@@ -169,7 +164,7 @@ validate_inputs() {
         if [[ ! -f "$BRIDGE_CHECK_PATH" ]]; then
             echo -e "${RED}Error: Bridge script not found at $BRIDGE_CHECK_PATH${NC}"
             echo "Please build the bridge:"
-            echo "  cd gmine-bridge/bridge_nodejs && npm run build"
+            echo "  cd bridge && npm run build"
             exit 1
         fi
     fi
