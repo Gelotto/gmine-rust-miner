@@ -6,6 +6,20 @@ The official high-performance CPU mining client for the GMINE network, written i
 
 This repository contains the production mining client (`simple_miner`) for mining POWER tokens on the Injective blockchain through proof-of-work using the drillx (Equihash) algorithm.
 
+## 🚀 Quick Install
+
+### Linux/macOS (Recommended)
+```bash
+curl -fsSL https://raw.githubusercontent.com/Gelotto/gmine-rust-miner/main/install.sh | sh
+```
+
+This will install the `gmine` command to `~/.gmine/bin`. The installer will provide instructions for adding it to your PATH.
+
+### Other Installation Methods
+- **Build from source**: `curl -fsSL https://raw.githubusercontent.com/Gelotto/gmine-rust-miner/main/install.sh | sh -s -- --from-source`
+- **Docker**: `docker pull gelottohq/gmine:latest` (see [Docker Usage](#docker-usage))
+- **Manual build**: Clone and build with cargo (see [Building from Source](#building-from-source))
+
 ---
 
 ## Table of Contents
@@ -45,32 +59,25 @@ Before you begin, ensure you have the following:
 
 ## Quick Start: Start Mining in 5 Minutes
 
-The fastest way to start mining is using the native Rust EIP-712 signer:
-
-1. **Clone the repository:**
+1. **Install GMINE:**
    ```bash
-   git clone https://github.com/Gelotto/gmine-rust-miner.git
-   cd gmine-rust-miner
+   curl -fsSL https://raw.githubusercontent.com/Gelotto/gmine-rust-miner/main/install.sh | sh
+   ```
+   Follow the instructions to add `~/.gmine/bin` to your PATH.
+
+2. **Start mining with test wallet (for testing only):**
+   ```bash
+   gmine --workers 4
    ```
 
-2. **Build the mining client:**
+3. **For production mining with your own wallet:**
    ```bash
-   cargo build --release --bin simple_miner
-   ```
-
-3. **Start mining with test wallet (for testing only):**
-   ```bash
-   ./mine-rust.sh --workers 4
-   ```
-
-4. **For production mining with your own wallet:**
-   ```bash
-   ./mine-rust.sh --mnemonic "your twelve word mnemonic phrase here" --workers 4
+   gmine --mnemonic "your twelve word mnemonic phrase here" --workers 4
    ```
 
    **⚠️ WARNING**: Use a NEW wallet for mining, not your main wallet!
 
-5. **Get testnet INJ tokens:**
+4. **Get testnet INJ tokens:**
    Visit https://testnet.faucet.injective.network/ to get free testnet tokens
 
 ---
@@ -122,23 +129,32 @@ GMINE mining requires EIP-712 signatures for submitting solutions. This reposito
 
 ### Running with Native Rust Signer (Recommended)
 
+After installation via the one-liner, use the `gmine` command:
+
 ```bash
 # Basic usage with test wallet
-./mine-rust.sh
+gmine
 
-# Production mining with your wallet and 4 workers
-./mine-rust.sh --mnemonic "your mnemonic phrase" --workers 4
+# Production mining with your wallet and 4 workers  
+gmine --mnemonic "your mnemonic phrase" --workers 4
 
 # Mine for 1 hour with debug logging
-./mine-rust.sh --duration 3600 --verbose
+gmine --duration 3600 --verbose
 
 # Using environment variables
 export MNEMONIC="your mnemonic phrase"
 export GMINE_WORKERS=4
-./mine-rust.sh
+gmine
+```
+
+If you cloned the repository manually, use the provided scripts:
+```bash
+./mine-rust.sh --mnemonic "your mnemonic phrase" --workers 4
 ```
 
 ### Running with Node.js Bridge (Legacy)
+
+⚠️ **Note**: The Node.js bridge is not included in the one-liner installation. Clone the repository to use this method.
 
 First, build the bridge:
 ```bash
