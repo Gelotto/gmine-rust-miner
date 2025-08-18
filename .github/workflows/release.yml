@@ -88,6 +88,19 @@ jobs:
           tar -czf ../${{ matrix.archive }} simple_miner
           cd ..
 
+      - name: Generate Checksum
+        run: shasum -a 256 ${{ matrix.archive }} > ${{ matrix.archive }}.sha256
+
+      - name: Upload Checksum Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./${{ matrix.archive }}.sha256
+          asset_name: ${{ matrix.archive }}.sha256
+          asset_content_type: text/plain
+
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
@@ -123,6 +136,19 @@ jobs:
       - name: Create bridge archive
         run: |
           tar -czf gmine-bridge.tar.gz bridge/
+
+      - name: Generate Bridge Checksum
+        run: shasum -a 256 gmine-bridge.tar.gz > gmine-bridge.tar.gz.sha256
+
+      - name: Upload Bridge Checksum
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./gmine-bridge.tar.gz.sha256
+          asset_name: gmine-bridge.tar.gz.sha256
+          asset_content_type: text/plain
 
       - name: Upload Bridge Asset
         uses: actions/upload-release-asset@v1

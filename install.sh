@@ -39,6 +39,30 @@ need_cmd() {
     fi
 }
 
+# Find a suitable checksum command and verify a file
+verify_checksum() {
+    file=$1
+    checksum_file=$2
+
+    # Find a checksum command
+    if command -v shasum > /dev/null; then
+        checksum_cmd="shasum -a 256"
+    elif command -v sha256sum > /dev/null; then
+        checksum_cmd="sha256sum"
+    else
+        err "Checksum verification failed: 'shasum' or 'sha256sum' command not found."
+    fi
+
+    say "Verifying checksum..."
+    # The checksum file from `shasum` contains the filename, so we adjust the command.
+    # On Linux, `sha256sum -c` is ideal. On macOS, `shasum -a 256 -c` works.
+    # This unified approach is robust.
+    (cd "$(dirname "$file")" && $checksum_cmd -c "$(basename "$checksum_file")") \
+        || err "Checksum verification failed!"
+    
+    say "✓ Checksum verified"
+}
+
 # Get latest release tag from GitHub
 get_latest_release() {
     need_cmd curl
@@ -99,6 +123,13 @@ main() {
     say "Platform: ${OS}-${ARCH}"
     say "Install directory: ${GMINE_DIR}"
     say ""
+    
+    # Check for existing installation
+    if [ -f "${EXE}" ]; then
+        say "An existing 'gmine' binary was found at ${EXE}."
+        say "To reinstall, please remove it first: rm ${EXE}"
+        exit 1
+    fi
     
     # Create directories
     mkdir -p "${BIN_DIR}"
@@ -206,8 +237,10 @@ install_from_binary() {
     RELEASE_TAG=$(get_latest_release)
     say "Latest release: ${RELEASE_TAG}"
     
-    # Construct download URL
-    DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}/gmine-${TARGET}.tar.gz"
+    # Define archive name and URLs
+    ARCHIVE_NAME="gmine-${TARGET}.tar.gz"
+    DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}/${ARCHIVE_NAME}"
+    CHECKSUM_URL="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}/${ARCHIVE_NAME}.sha256"
     
     say "Downloading from: ${DOWNLOAD_URL}"
     
@@ -215,14 +248,25 @@ install_from_binary() {
     TMP_DIR=$(mktemp -d)
     trap "rm -rf $TMP_DIR" EXIT
     
-    # Download and extract
-    if ! curl --proto '=https' --tlsv1.2 -sSfL "${DOWNLOAD_URL}" -o "${TMP_DIR}/gmine.tar.gz"; then
-        say "Download failed"
+    # Download archive and checksum
+    ARCHIVE_PATH="${TMP_DIR}/gmine.tar.gz"
+    CHECKSUM_PATH="${TMP_DIR}/${ARCHIVE_NAME}.sha256"
+    
+    if ! curl --proto '=https' --tlsv1.2 -sSfL "${DOWNLOAD_URL}" -o "${ARCHIVE_PATH}"; then
+        say "Download failed: ${DOWNLOAD_URL}"
         return 1
     fi
     
+    if ! curl --proto '=https' --tlsv1.2 -sSfL "${CHECKSUM_URL}" -o "${CHECKSUM_PATH}"; then
+        say "Checksum download failed: ${CHECKSUM_URL}"
+        return 1
+    fi
+    
+    # Verify and extract
+    verify_checksum "${ARCHIVE_PATH}" "${CHECKSUM_PATH}"
+    
     say "Extracting..."
-    tar -xzf "${TMP_DIR}/gmine.tar.gz" -C "${TMP_DIR}"
+    tar -xzf "${ARCHIVE_PATH}" -C "${TMP_DIR}"
     
     # Find and install the binary
     if [ -f "${TMP_DIR}/${BINARY_NAME}" ]; then
