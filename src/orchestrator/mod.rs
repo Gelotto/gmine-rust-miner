@@ -93,6 +93,10 @@ pub struct OrchestratorConfig {
     pub contract_address: String,
     /// Number of worker threads for mining
     pub worker_count: usize,
+    /// Safety buffer for phase-ending transactions (in blocks)
+    /// Commits and reveals won't be submitted if less than this many blocks remain
+    /// Default: 8 blocks (~8 seconds) to account for transaction processing time
+    pub submission_buffer_blocks: u64,
 }
 
 impl Default for OrchestratorConfig {
@@ -105,6 +109,7 @@ impl Default for OrchestratorConfig {
             retry_delay_ms: 1000,
             contract_address: String::new(),
             worker_count: 4,
+            submission_buffer_blocks: 8,  // Conservative default
         }
     }
 }
@@ -273,8 +278,9 @@ impl MiningOrchestrator {
                             Ok(epoch_info) => {
                                 drop(client);
                                 match epoch_info.phase {
-                                    PhaseInfo::Commit { .. } => {
-                                        log::info!("Starting mining for epoch {} (Commit phase)", chain_epoch);
+                                    PhaseInfo::Commit { ends_at } => {
+                                        log::info!("Starting mining for epoch {} (Commit phase, ends at block {})", 
+                                                  chain_epoch, ends_at);
                                         self.transition_to_finding_solution(chain_epoch).await?;
                                     }
                                     PhaseInfo::Settlement { ends_at } => {
@@ -388,9 +394,20 @@ impl MiningOrchestrator {
                             
                             // Check phase
                             match epoch_info.phase {
-                                PhaseInfo::Commit { .. } => {
-                                    // Good to commit
-                                    match self.submit_commitment(&data).await {
+                                PhaseInfo::Commit { ends_at } => {
+                                    // Check if we have enough time to commit
+                                    let current_block = self.get_block_height_with_retry().await.unwrap_or(0);
+                                    let blocks_remaining = if ends_at > current_block {
+                                        ends_at - current_block
+                                    } else {
+                                        0
+                                    };
+                                    
+                                    if blocks_remaining >= self.config.submission_buffer_blocks {
+                                        // Good to commit - enough time for transaction processing
+                                        log::info!("In Commit phase for epoch {} with {} blocks remaining (need at least {})", 
+                                                  data.epoch, blocks_remaining, self.config.submission_buffer_blocks);
+                                        match self.submit_commitment(&data).await {
                                         Ok(_) => {
                                             log::info!("Successfully committed for epoch {}", data.epoch);
                                             // Track successful commit in telemetry
@@ -411,6 +428,12 @@ impl MiningOrchestrator {
                                                 self.transition_to_idle().await?;
                                             }
                                         }
+                                    }
+                                    } else {
+                                        log::warn!("Not enough time to commit - only {} blocks remaining (need at least {})", 
+                                                  blocks_remaining, self.config.submission_buffer_blocks);
+                                        log::warn!("Skipping commit for epoch {} to avoid late transaction", data.epoch);
+                                        self.transition_to_idle().await?;
                                     }
                                 }
                                 PhaseInfo::Settlement { ends_at } => {
@@ -540,12 +563,12 @@ impl MiningOrchestrator {
                                     } else {
                                         0
                                     };
-                                    log::info!("In Reveal phase with {} blocks remaining (current: {}, ends: {})", 
-                                              blocks_remaining, current_block, ends_at);
+                                    log::info!("In Reveal phase for epoch {} with {} blocks remaining (current: {}, ends: {})", 
+                                              epoch_info.epoch_number, blocks_remaining, current_block, ends_at);
                                     
-                                    // Attempt reveal immediately if we have any time left (even 1 block)
-                                    // Be aggressive since the window is so short
-                                    if blocks_remaining >= 1 {
+                                    // Only attempt reveal if we have enough time for transaction processing
+                                    // Account for network latency and block inclusion time
+                                    if blocks_remaining >= self.config.submission_buffer_blocks {
                                         match self.submit_reveal(&data).await {
                         Ok(_) => {
                             log::info!("Successfully revealed for epoch {}", data.epoch);
@@ -584,18 +607,18 @@ impl MiningOrchestrator {
                                             if let Some(ref reporter) = self.telemetry_reporter {
                                                 reporter.record_reveal_attempt(false, None).await;
                                             }
-                                            // Check if reveal window passed
-                                            let block_height = self.get_block_height_with_retry().await?;
-                                            if self.is_past_reveal_window(block_height) {
+                                            // Check if reveal window passed by querying chain state
+                                            if self.is_past_reveal_window().await? {
                                                 log::warn!("Reveal window passed, moving to claim");
                                                 // Claim for the CURRENT epoch (reveal epoch), not commitment epoch
-                            // Reveals are stored with the current epoch number in the contract
-                            self.transition_to_claiming(epoch_info.epoch_number).await?;
+                                                // Reveals are stored with the current epoch number in the contract
+                                                self.transition_to_claiming(epoch_info.epoch_number).await?;
                                             }
                                         }
                                     }
                                     } else {
-                                        log::warn!("Not enough time to reveal - only {} blocks remaining", blocks_remaining);
+                                        log::warn!("Not enough time to reveal - only {} blocks remaining (need at least {})", 
+                                                  blocks_remaining, self.config.submission_buffer_blocks);
                                         self.transition_to_idle().await?;
                                     }
                                 }
@@ -1113,11 +1136,26 @@ impl MiningOrchestrator {
         }
     }
     
-    fn is_past_reveal_window(&self, block_height: u64) -> bool {
-        // Reveal window is blocks 31-45 of an epoch
-        // Assuming 50 blocks per epoch
-        let block_in_epoch = block_height % 50;
-        block_in_epoch > 45
+    /// Check if we're past the reveal window by querying chain state
+    /// This replaces local block calculations to prevent timing drift
+    async fn is_past_reveal_window(&self) -> Result<bool> {
+        let client = self.client.read().await;
+        match query_epoch_info(&*client, &self.config.contract_address).await {
+            Ok(epoch_info) => {
+                match epoch_info.phase {
+                    PhaseInfo::Settlement { .. } => Ok(true),  // Past reveal
+                    PhaseInfo::Commit { .. } => Ok(true),      // Way past reveal (next epoch)
+                    PhaseInfo::Reveal { .. } => Ok(false),     // Still in reveal
+                }
+            }
+            Err(e) => {
+                log::warn!("Failed to query epoch phase, falling back to local calculation: {}", e);
+                // Fallback to local calculation if query fails
+                let block_height = self.get_block_height_with_retry().await?;
+                let block_in_epoch = block_height % 50;
+                Ok(block_in_epoch > 45)
+            }
+        }
     }
     
     /// Get current mining statistics
