@@ -114,6 +114,11 @@ struct MineArgs {
     /// Use Rust-native EIP-712 signer instead of Node.js bridge (experimental)
     #[arg(long)]
     use_rust_signer: bool,
+    
+    /// Safety buffer for phase-ending transactions (in blocks)
+    /// Commits and reveals won't be submitted if less than this many blocks remain
+    #[arg(long, default_value = "8")]
+    submission_buffer_blocks: Option<u64>,
 }
 
 /// Configuration file structure
@@ -367,6 +372,7 @@ async fn cmd_mine(args: MineArgs) -> Result<()> {
         if cpu_count > 1 { cpu_count - 1 } else { 1 }
     });
     log::info!("Workers: {}", workers);
+    log::info!("Submission buffer: {} blocks", args.submission_buffer_blocks.unwrap_or(8));
     
     // Configure client
     let client_config = if config.mining.network == "mainnet" {
@@ -450,6 +456,7 @@ async fn cmd_mine(args: MineArgs) -> Result<()> {
         retry_delay_ms: 1000,
         contract_address: contracts.mining_contract.clone(),
         worker_count: workers,
+        submission_buffer_blocks: args.submission_buffer_blocks.unwrap_or(8),  // Conservative default: 8 blocks (~8 seconds)
     };
     
     // Create and run orchestrator

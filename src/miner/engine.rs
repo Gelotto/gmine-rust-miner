@@ -49,6 +49,21 @@ impl MiningEngine {
             self.threads, difficulty
         );
 
+        // CRITICAL FIX: Clean up old workers before starting new ones
+        if !self.workers.is_empty() {
+            info!("Cleaning up {} old workers before starting new epoch", self.workers.len());
+            self.shutdown().await;
+        }
+
+        // Also drain any stale solutions from the channel
+        let mut drained = 0;
+        while let Ok(_) = self.solution_rx.try_recv() {
+            drained += 1;
+        }
+        if drained > 0 {
+            info!("Drained {} stale solutions from channel", drained);
+        }
+
         let nonce_range = nonce_end - nonce_start;
         let nonce_per_worker = nonce_range / self.threads as u64;
 
