@@ -34,7 +34,7 @@ The interactive installer will:
 
 ### Other Installation Methods
 - **Build from source**: `curl -fsSL https://raw.githubusercontent.com/Gelotto/gmine-rust-miner/main/install.sh | sh -s -- --from-source`
-- **Docker**: `docker pull gelottohq/gmine:latest` (see [Docker Usage](#docker-usage))
+- **Docker**: `docker pull gelottohq/gmine:v1.1.2` (see [Docker Usage](#docker-usage))
 - **Manual build**: Clone and build with cargo (see [Building from Source](#building-from-source))
 
 ---
@@ -296,24 +296,66 @@ cargo clippy
 
 ## Docker Usage
 
-### Using Pre-built Image
-```bash
-docker pull gelottohq/gmine:latest
+### Quick Start with Docker
 
+```bash
+# Pull the latest stable version
+docker pull gelottohq/gmine:v1.1.2
+
+# Run with environment variables
 docker run -d \
   --name gmine-miner \
   -e MNEMONIC="your twelve word mnemonic phrase here" \
-  -e NETWORK=testnet \
-  -e WORKERS=4 \
-  -v gmine-data:/data \
-  gelottohq/gmine:latest
+  -e GMINE_NETWORK=testnet \
+  -e GMINE_WORKERS=4 \
+  -e RUST_LOG=info \
+  -v gmine-data:/home/miner/.gmine \
+  gelottohq/gmine:v1.1.2
 ```
+
+### Docker Run Options
+```bash
+# Interactive mode to see logs
+docker run -it --rm \
+  -e MNEMONIC="your mnemonic phrase" \
+  gelottohq/gmine:v1.1.2
+
+# Run with custom parameters
+docker run -d \
+  --name gmine-miner \
+  -v gmine-data:/home/miner/.gmine \
+  gelottohq/gmine:v1.1.2 mine \
+  --mnemonic "your mnemonic phrase" \
+  --workers 8 \
+  --network testnet \
+  --debug
+
+# View logs
+docker logs -f gmine-miner
+
+# Stop the miner
+docker stop gmine-miner
+```
+
+### Environment Variables
+- `MNEMONIC`: Your wallet mnemonic phrase
+- `GMINE_WORKERS`: Number of CPU threads (default: auto-detect)
+- `GMINE_NETWORK`: Network selection (testnet/mainnet)
+- `RUST_LOG`: Log level (error/warn/info/debug/trace)
 
 ### Building Your Own Image
 ```bash
+git clone https://github.com/Gelotto/gmine-rust-miner.git
+cd gmine-rust-miner
 docker build -t my-gmine-miner .
-docker run -d --name my-miner my-gmine-miner
 ```
+
+### Multi-Architecture Support
+The official images support both AMD64 and ARM64 architectures, making them compatible with:
+- Standard x86_64 servers
+- Apple Silicon Macs
+- ARM-based cloud instances (AWS Graviton, etc.)
+- Raspberry Pi and other ARM devices
 
 ---
 
