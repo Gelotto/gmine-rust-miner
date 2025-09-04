@@ -18,7 +18,7 @@ use tokio::time::sleep;
 use uuid::Uuid;
 
 use crate::chain::{InjectiveClient, query_epoch_info};
-use crate::chain::queries::{PhaseInfo, query_stake_info, query_emission_metrics, query_power_balance};
+use crate::chain::queries::{PhaseInfo, query_stake_info, query_emission_metrics};
 use crate::chain::wallet::InjectiveWallet;
 // Messages are now handled by transaction_manager
 use crate::miner::MiningEngine;
@@ -254,7 +254,7 @@ impl MiningOrchestrator {
             let client = self.client.read().await;
             match query_stake_info(&*client, &self.config.contract_address, &self.wallet.address).await {
                 Ok(stake_info) => {
-                    let amount = stake_info.amount.parse::<u128>().unwrap_or(0) as f64 / 1_000_000.0;
+                    let amount = stake_info.amount_staked.parse::<u128>().unwrap_or(0) as f64 / 1_000_000.0;
                     let multiplier = stake_info.multiplier as f64 / 1000.0;
                     log::info!("✓ V3.3 Stake Status: {} POWER staked, {}x multiplier", amount, multiplier);
                     

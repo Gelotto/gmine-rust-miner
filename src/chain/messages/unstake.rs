@@ -1,6 +1,6 @@
 use cosmwasm_std::Uint128;
 use serde::{Serialize, Deserialize};
-use super::{ExecuteMsg, MessageBuilder, MINING_CONTRACT_ADDRESS};
+use super::{ExecuteMsg, MessageBuilder};
 
 /// Message for unstaking POWER tokens from the mining contract
 #[derive(Debug, Clone, Serialize, Deserialize)]

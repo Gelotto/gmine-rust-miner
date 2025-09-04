@@ -316,7 +316,7 @@ pub async fn query_stake_info(
     
     log::info!(
         "Stake info - Amount: {} POWER, Multiplier: {}x, Locked until block: {}",
-        stake_info.amount,
+        stake_info.amount_staked,
         stake_info.multiplier as f64 / 1000.0,
         stake_info.lock_until
     );
