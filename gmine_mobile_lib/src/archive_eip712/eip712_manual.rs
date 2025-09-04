@@ -6,7 +6,7 @@ use std::error::Error;
 use std::collections::HashMap;
 
 const CHAIN_ID: &str = "injective-888";
-const MINING_CONTRACT: &str = "inj1h2rq8q2ly6mwgwv4jcd5qpjvfqwvwee5v9n032"; // V3.4 contract with JIT History fix
+const MINING_CONTRACT: &str = "inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66"; // V3.5 with migration capability
 const ETHEREUM_CHAIN_ID: u64 = 1439; // Testnet
 
 pub struct Eip712Signer {

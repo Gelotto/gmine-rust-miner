@@ -9,7 +9,7 @@ use base64;
 use base64::Engine;
 
 // Configuration
-const MINING_CONTRACT: &str = "inj1h2rq8q2ly6mwgwv4jcd5qpjvfqwvwee5v9n032"; // V3.4 contract with JIT History fix
+const MINING_CONTRACT: &str = "inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66"; // V3.5 with migration capability
 const BRIDGE_PORT: u16 = 7777; // Local Node.js bridge port
 
 // --- Data Structures ---
