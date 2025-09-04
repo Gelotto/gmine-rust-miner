@@ -1,6 +1,18 @@
 /// Production contract addresses for GMINE V2 deployment
 /// These are the actual deployed contracts on Injective testnet
 
+/// V3.5 Mining Contract with Migration Capability (deployed 2025-09-03)
+/// Adds migration capability and configurable parameters, MIN_STAKE reduced to 100 POWER
+pub const V3_5_MINING_CONTRACT: &str = "inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66";
+pub const V3_5_POWER_TOKEN: &str = "inj1esn6fgltm0fvqe2n57cdkvtwwpyyf9due8ps49";
+
+/// V3.4 Mining Contract with Just-in-Time History Fix (deployed 2025-09-02)
+/// Fixes epoch finalization bug where epochs couldn't be finalized if advance_epoch wasn't called
+pub const V3_4_MINING_CONTRACT: &str = "inj1h2rq8q2ly6mwgwv4jcd5qpjvfqwvwee5v9n032";
+
+/// V3.3 Mining Contract (deprecated - has epoch finalization bug)
+pub const V3_3_MINING_CONTRACT: &str = "inj1y32mvdpmtz9gpyvxdlldulc6ertxs7z7zajs2j";
+
 /// V2 Optimized Mining Contract (deployed 2025-08-07)
 /// Gas costs: 154,585 gas = $0.0019 per reveal = $1.62/month
 pub const V2_MINING_CONTRACT: &str = "inj1mdq8lej6n35lp977w9nvc7mglwc3tqh5cms42y";
@@ -26,7 +38,7 @@ impl NetworkConfig {
             chain_id: "injective-888".to_string(),
             grpc_endpoint: "https://testnet.sentry.chain.grpc.injective.network:443".to_string(),
             rest_endpoint: "https://testnet.sentry.tm.injective.network:443".to_string(),
-            mining_contract: V2_MINING_CONTRACT.to_string(),
+            mining_contract: V3_5_MINING_CONTRACT.to_string(),
             gas_price: "500000000inj".to_string(), // 0.5 INJ per gas unit
         }
     }
@@ -172,7 +184,7 @@ mod tests {
     fn test_network_config() {
         let testnet = NetworkConfig::testnet();
         assert_eq!(testnet.chain_id, "injective-888");
-        assert_eq!(testnet.mining_contract, V2_MINING_CONTRACT);
+        assert_eq!(testnet.mining_contract, V3_5_MINING_CONTRACT);
         
         let mainnet = NetworkConfig::mainnet();
         assert_eq!(mainnet.chain_id, "injective-1");

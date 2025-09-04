@@ -74,8 +74,8 @@ impl ContractAddresses {
     /// Get testnet contract addresses
     pub fn testnet() -> Self {
         Self {
-            mining_contract: "inj1mdq8lej6n35lp977w9nvc7mglwc3tqh5cms42y".to_string(),
-            power_token: "inj1326k32dr7vjx5tnkuxlt58vkejj60r5ens29s8".to_string(),
+            mining_contract: "inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66".to_string(), // V3.5 with migration capability
+            power_token: "inj1esn6fgltm0fvqe2n57cdkvtwwpyyf9due8ps49".to_string(), // V3.5 power token
         }
     }
 }
@@ -229,7 +229,181 @@ mod tests {
     #[test]
     fn test_contract_addresses() {
         let addrs = ContractAddresses::testnet();
-        assert_eq!(addrs.mining_contract, "inj1mdq8lej6n35lp977w9nvc7mglwc3tqh5cms42y");
-        assert_eq!(addrs.power_token, "inj1326k32dr7vjx5tnkuxlt58vkejj60r5ens29s8");
+        assert_eq!(addrs.mining_contract, "inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66");
+        assert_eq!(addrs.power_token, "inj1esn6fgltm0fvqe2n57cdkvtwwpyyf9due8ps49");
     }
+}
+
+// V3.3 Query Messages
+#[derive(Serialize, Debug)]
+pub struct GetStakeInfoMsg {
+    #[serde(rename = "stake_info")]
+    pub stake_info: StakeInfoQuery,
+}
+
+#[derive(Serialize, Debug)]
+pub struct StakeInfoQuery {
+    pub miner: String,
+}
+
+#[derive(Serialize, Debug)]
+pub struct GetEmissionMetricsMsg {
+    #[serde(rename = "emission_metrics")]
+    pub emission_metrics: EmptyStruct,
+}
+
+#[derive(Serialize, Debug)]
+pub struct GetStakingMultipliersMsg {
+    #[serde(rename = "staking_multipliers")]
+    pub staking_multipliers: EmptyStruct,
+}
+
+// V3.3 Response Types
+#[derive(Deserialize, Debug, Clone)]
+pub struct StakeInfoResponse {
+    pub miner: String,
+    pub amount_staked: String,  // Changed from 'amount' to match contract
+    pub lock_until: u64,
+    pub multiplier: u64,
+    pub effective_stake: String,
+    // Note: original_lock_duration is not returned by the contract
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct EmissionMetricsResponse {
+    pub current_epoch_emissions: String,
+    pub daily_emissions_estimate: String,
+    pub active_staking_ratio: String,
+    pub effective_emission_rate: String,
+    pub circuit_breaker_active: bool,
+    pub warmup_active: bool,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct StakingMultipliersResponse {
+    pub multipliers: Vec<MultiplierTier>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct MultiplierTier {
+    pub lock_days: u64,
+    pub multiplier: u64,
+    pub blocks: u64,
+}
+
+// V3.3 Query Functions
+/// Query stake information for a specific miner
+pub async fn query_stake_info(
+    client: &InjectiveClient,
+    contract_address: &str,
+    miner_address: &str,
+) -> Result<StakeInfoResponse> {
+    let query_msg = GetStakeInfoMsg {
+        stake_info: StakeInfoQuery {
+            miner: miner_address.to_string(),
+        },
+    };
+    
+    let query_data = serde_json::to_vec(&query_msg)?;
+    let response = client.query_contract_smart(
+        contract_address,
+        query_data,
+    ).await?;
+    
+    log::debug!("Raw stake info response: {}", serde_json::to_string_pretty(&response)?);
+    
+    let stake_info: StakeInfoResponse = serde_json::from_value(response)?;
+    
+    log::info!(
+        "Stake info - Amount: {} POWER, Multiplier: {}x, Locked until block: {}",
+        stake_info.amount,
+        stake_info.multiplier as f64 / 1000.0,
+        stake_info.lock_until
+    );
+    
+    Ok(stake_info)
+}
+
+/// Query current emission metrics from the contract
+pub async fn query_emission_metrics(
+    client: &InjectiveClient,
+    contract_address: &str,
+) -> Result<EmissionMetricsResponse> {
+    let query_msg = GetEmissionMetricsMsg {
+        emission_metrics: EmptyStruct {},
+    };
+    
+    let query_data = serde_json::to_vec(&query_msg)?;
+    let response = client.query_contract_smart(
+        contract_address,
+        query_data,
+    ).await?;
+    
+    let metrics: EmissionMetricsResponse = serde_json::from_value(response)?;
+    
+    log::info!(
+        "Emission metrics - Current: {} POWER/epoch, Daily estimate: {} POWER",
+        metrics.current_epoch_emissions,
+        metrics.daily_emissions_estimate
+    );
+    
+    Ok(metrics)
+}
+
+/// Query available staking multiplier tiers
+pub async fn query_staking_multipliers(
+    client: &InjectiveClient,
+    contract_address: &str,
+) -> Result<StakingMultipliersResponse> {
+    let query_msg = GetStakingMultipliersMsg {
+        staking_multipliers: EmptyStruct {},
+    };
+    
+    let query_data = serde_json::to_vec(&query_msg)?;
+    let response = client.query_contract_smart(
+        contract_address,
+        query_data,
+    ).await?;
+    
+    let multipliers: StakingMultipliersResponse = serde_json::from_value(response)?;
+    
+    log::debug!("Available staking tiers:");
+    for tier in &multipliers.multipliers {
+        log::debug!(
+            "  {} days ({}): {}x multiplier",
+            tier.lock_days,
+            tier.blocks,
+            tier.multiplier as f64 / 1000.0
+        );
+    }
+    
+    Ok(multipliers)
+}
+
+/// Query POWER token balance for an address
+pub async fn query_power_balance(
+    client: &InjectiveClient,
+    power_token_address: &str,
+    address: &str,
+) -> Result<cw20::BalanceResponse> {
+    let query_msg = cw20::Cw20QueryMsg::Balance {
+        address: address.to_string(),
+    };
+    
+    let query_data = serde_json::to_vec(&query_msg)?;
+    let response = client.query_contract_smart(
+        power_token_address,
+        query_data,
+    ).await?;
+    
+    let balance: cw20::BalanceResponse = serde_json::from_value(response)?;
+    
+    log::debug!(
+        "POWER balance for {}: {} ({})",
+        address,
+        balance.balance,
+        balance.balance.u128() as f64 / 1_000_000.0
+    );
+    
+    Ok(balance)
 }

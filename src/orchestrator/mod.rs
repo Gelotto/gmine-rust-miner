@@ -18,7 +18,7 @@ use tokio::time::sleep;
 use uuid::Uuid;
 
 use crate::chain::{InjectiveClient, query_epoch_info};
-use crate::chain::queries::PhaseInfo;
+use crate::chain::queries::{PhaseInfo, query_stake_info, query_emission_metrics, query_power_balance};
 use crate::chain::wallet::InjectiveWallet;
 // Messages are now handled by transaction_manager
 use crate::miner::MiningEngine;
@@ -64,6 +64,8 @@ pub struct MiningState {
     pub epoch: u64,
     pub phase: MiningPhase,
     pub last_saved: u64, // Timestamp for state saves
+    #[serde(default)]
+    pub committed_epochs: Vec<u64>, // Track epochs we've already committed to
 }
 
 impl Default for MiningState {
@@ -72,6 +74,7 @@ impl Default for MiningState {
             epoch: 0,
             phase: MiningPhase::Idle,
             last_saved: 0,
+            committed_epochs: Vec::new(),
         }
     }
 }
@@ -151,15 +154,28 @@ impl MiningOrchestrator {
         // This prevents the "nonce out of range" infinite loop bug
         match query_epoch_info(&client, &config.contract_address).await {
             Ok(current_epoch_info) => {
-                if state.epoch > 0 && current_epoch_info.epoch_number > state.epoch + 5 {
+                let current_epoch = current_epoch_info.epoch_number;
+                
+                if state.epoch > 0 && current_epoch > state.epoch + 5 {
                     log::warn!(
                         "Loaded state is stale (epoch {} vs current {}), discarding and starting fresh",
-                        state.epoch, current_epoch_info.epoch_number
+                        state.epoch, current_epoch
                     );
                     state = MiningState::default();
                     // Try to delete the stale state file
                     if let Err(e) = fs::remove_file(&config.state_file) {
                         log::debug!("Could not remove stale state file: {}", e);
+                    }
+                } else {
+                    // Validate committed_epochs - remove any future epochs
+                    let original_len = state.committed_epochs.len();
+                    state.committed_epochs.retain(|&epoch| epoch <= current_epoch);
+                    if state.committed_epochs.len() < original_len {
+                        log::warn!(
+                            "Removed {} future epochs from committed_epochs (current epoch: {})",
+                            original_len - state.committed_epochs.len(),
+                            current_epoch
+                        );
                     }
                 }
             }
@@ -233,6 +249,47 @@ impl MiningOrchestrator {
             }
         }
         
+        // V3.3: Check and display stake status
+        {
+            let client = self.client.read().await;
+            match query_stake_info(&*client, &self.config.contract_address, &self.wallet.address).await {
+                Ok(stake_info) => {
+                    let amount = stake_info.amount.parse::<u128>().unwrap_or(0) as f64 / 1_000_000.0;
+                    let multiplier = stake_info.multiplier as f64 / 1000.0;
+                    log::info!("✓ V3.3 Stake Status: {} POWER staked, {}x multiplier", amount, multiplier);
+                    
+                    if amount > 0.0 && stake_info.lock_until > 0 {
+                        let current_block = self.get_block_height_with_retry().await.unwrap_or(0);
+                        if stake_info.lock_until > current_block {
+                            let blocks_remaining = stake_info.lock_until - current_block;
+                            let days_remaining = blocks_remaining * 5 / (24 * 60 * 60);
+                            log::info!("  Lock expires in {} days ({} blocks)", days_remaining, blocks_remaining);
+                        }
+                    }
+                }
+                Err(_) => {
+                    log::info!("ℹ V3.3 Stake Status: No stake found (mining at 1x multiplier)");
+                }
+            }
+            
+            // Show emission metrics
+            match query_emission_metrics(&*client, &self.config.contract_address).await {
+                Ok(metrics) => {
+                    let current = metrics.current_epoch_emissions.parse::<u128>().unwrap_or(0) as f64 / 1_000_000.0;
+                    let daily = metrics.daily_emissions_estimate.parse::<u128>().unwrap_or(0) as f64 / 1_000_000.0;
+                    log::info!("✓ V3.3 Emissions: {} POWER/epoch, ~{} POWER/day", current, daily);
+                    
+                    if metrics.circuit_breaker_active {
+                        log::warn!("  ⚠ Circuit breaker active - emissions capped!");
+                    }
+                }
+                Err(e) => {
+                    log::debug!("Could not query emission metrics: {}", e);
+                }
+            }
+            drop(client);
+        }
+        
         // Connect to chain if not connected
         {
             let client = self.client.read().await;
@@ -279,9 +336,15 @@ impl MiningOrchestrator {
                                 drop(client);
                                 match epoch_info.phase {
                                     PhaseInfo::Commit { ends_at } => {
-                                        log::info!("Starting mining for epoch {} (Commit phase, ends at block {})", 
-                                                  chain_epoch, ends_at);
-                                        self.transition_to_finding_solution(chain_epoch).await?;
+                                        // Check if we've already committed to this epoch
+                                        if self.state.committed_epochs.contains(&chain_epoch) {
+                                            log::info!("Already committed to epoch {}, waiting for next epoch", chain_epoch);
+                                            sleep(Duration::from_secs(self.config.epoch_poll_interval)).await;
+                                        } else {
+                                            log::info!("Starting mining for epoch {} (Commit phase, ends at block {})", 
+                                                      chain_epoch, ends_at);
+                                            self.transition_to_finding_solution(chain_epoch).await?;
+                                        }
                                     }
                                     PhaseInfo::Settlement { ends_at } => {
                                         // Check if settlement has ended and needs advancement
@@ -410,6 +473,14 @@ impl MiningOrchestrator {
                                         match self.submit_commitment(&data).await {
                                         Ok(_) => {
                                             log::info!("Successfully committed for epoch {}", data.epoch);
+                                            // Track that we've committed to this epoch
+                                            if !self.state.committed_epochs.contains(&data.epoch) {
+                                                self.state.committed_epochs.push(data.epoch);
+                                                // Keep only recent epochs to avoid unbounded growth
+                                                if self.state.committed_epochs.len() > 20 {
+                                                    self.state.committed_epochs.remove(0);
+                                                }
+                                            }
                                             // Track successful commit in telemetry
                                             if let Some(ref reporter) = self.telemetry_reporter {
                                                 reporter.record_commit_attempt(true, None).await;
@@ -417,15 +488,40 @@ impl MiningOrchestrator {
                                             self.transition_to_waiting_for_reveal(data.clone()).await?;
                                         }
                                         Err(e) => {
-                                            log::error!("Failed to commit: {}", e);
-                                            // Track failed commit in telemetry
-                                            if let Some(ref reporter) = self.telemetry_reporter {
-                                                reporter.record_commit_attempt(false, None).await;
-                                            }
-                                            // Retry or transition back to idle if epoch passed
-                                            if chain_epoch > self.state.epoch {
-                                                log::warn!("Epoch passed, returning to idle");
-                                                self.transition_to_idle().await?;
+                                            let error_str = e.to_string();
+                                            log::error!("Failed to commit: {}", error_str);
+                                            
+                                            // Self-healing: If we get "already committed" error, update our local state
+                                            if error_str.contains("Already committed") || error_str.contains("already committed") {
+                                                log::warn!("Detected 'already committed' error - fixing local state discrepancy");
+                                                
+                                                // Add epoch to committed list if not already there
+                                                if !self.state.committed_epochs.contains(&data.epoch) {
+                                                    self.state.committed_epochs.push(data.epoch);
+                                                    // Keep only recent epochs to avoid unbounded growth
+                                                    if self.state.committed_epochs.len() > 20 {
+                                                        self.state.committed_epochs.remove(0);
+                                                    }
+                                                    // Save corrected state immediately
+                                                    if let Err(save_err) = self.save_state() {
+                                                        log::error!("Failed to save corrected state: {}", save_err);
+                                                    } else {
+                                                        log::info!("Successfully saved corrected state with epoch {} marked as committed", data.epoch);
+                                                    }
+                                                }
+                                                
+                                                // Transition to waiting for reveal since we're already committed
+                                                self.transition_to_waiting_for_reveal(data.clone()).await?;
+                                            } else {
+                                                // Track failed commit in telemetry for other errors
+                                                if let Some(ref reporter) = self.telemetry_reporter {
+                                                    reporter.record_commit_attempt(false, None).await;
+                                                }
+                                                // Retry or transition back to idle if epoch passed
+                                                if chain_epoch > self.state.epoch {
+                                                    log::warn!("Epoch passed, returning to idle");
+                                                    self.transition_to_idle().await?;
+                                                }
                                             }
                                         }
                                     }
@@ -537,9 +633,15 @@ impl MiningOrchestrator {
                         log::warn!("Missed reveal window for epoch {} (current epoch: {}). Starting fresh with current epoch.", 
                                   data.epoch, chain_epoch);
                         
-                        // Transition to finding solution for the current epoch
-                        self.state.epoch = chain_epoch;
-                        self.transition_to_finding_solution(chain_epoch).await?;
+                        // Check if we've already committed to the new epoch
+                        if self.state.committed_epochs.contains(&chain_epoch) {
+                            log::info!("Already committed to epoch {}, transitioning to idle", chain_epoch);
+                            self.transition_to_idle().await?;
+                        } else {
+                            // Transition to finding solution for the current epoch
+                            self.state.epoch = chain_epoch;
+                            self.transition_to_finding_solution(chain_epoch).await?;
+                        }
                     } else {
                         // chain_epoch < data.epoch shouldn't happen but wait if it does
                         log::debug!("Waiting for epoch {} (current: {})", data.epoch, chain_epoch);
@@ -683,36 +785,53 @@ impl MiningOrchestrator {
                         let current_epoch_info = query_epoch_info(&*client, &self.config.contract_address).await?;
                         drop(client);
                         
-                        // Only call advance_epoch if this is the current epoch and it's stuck
+                        // CRITICAL FIX: If claiming the current epoch, we MUST advance first
+                        // The V3.4 contract requires epochs to be in EPOCH_HISTORY before finalization
                         if claim_epoch == current_epoch_info.epoch_number {
-                            log::info!("This is the current epoch, checking if advance is needed...");
-                            // Only advance if the epoch is stuck past its settlement end
+                            log::info!("Claiming current epoch {}, must advance to next epoch first", claim_epoch);
+                            
+                            // Check if we're past settlement phase
                             match current_epoch_info.phase {
                                 PhaseInfo::Settlement { ends_at } => {
                                     let current_block = self.get_block_height_with_retry().await?;
-                                    if current_block > ends_at + 50 {  // Grace period
-                                        log::warn!("Current epoch {} is stuck past settlement end, advancing...", claim_epoch);
+                                    if current_block > ends_at {
+                                        log::info!("Settlement phase ended for epoch {}, advancing to next epoch", claim_epoch);
                                         match tx_manager.queue_advance_epoch().await {
                                             Ok(tx_id) => {
-                                                log::info!("Queued advance_epoch transaction {} for stuck epoch {}", tx_id, claim_epoch);
-                                                sleep(Duration::from_secs(5)).await;
+                                                log::info!("Queued advance_epoch transaction {} to move epoch {} to history", tx_id, claim_epoch);
+                                                // Wait for advance to complete
+                                                log::info!("Waiting 10 seconds for epoch advancement...");
+                                                sleep(Duration::from_secs(10)).await;
+                                                
+                                                // After advancing, the claim_epoch is now a past epoch
+                                                log::info!("Epoch {} should now be in history, proceeding with finalization", claim_epoch);
                                             }
                                             Err(e) => {
-                                                log::debug!("Advance epoch failed: {}", e);
+                                                log::error!("Failed to advance epoch: {}. Cannot finalize current epoch without advancing first!", e);
+                                                // Cannot proceed with finalization without advance
+                                                self.transition_to_idle().await?;
+                                                continue;
                                             }
                                         }
+                                    } else {
+                                        log::warn!("Still in settlement phase for epoch {}, cannot claim yet", claim_epoch);
+                                        sleep(Duration::from_secs(5)).await;
+                                        continue;
                                     }
                                 }
                                 _ => {
-                                    log::info!("Current epoch is in {:?} phase, no advance needed", current_epoch_info.phase);
+                                    log::warn!("Current epoch {} is in {:?} phase, expected Settlement. Skipping claim.", 
+                                             claim_epoch, current_epoch_info.phase);
+                                    self.transition_to_idle().await?;
+                                    continue;
                                 }
                             }
                         } else {
-                            log::info!("Claiming from past epoch {}, current is {} - skipping advance_epoch", 
+                            log::info!("Claiming from past epoch {}, current is {} - already in history", 
                                      claim_epoch, current_epoch_info.epoch_number);
                         }
                         
-                        // Now try to finalize the epoch
+                        // Now try to finalize the epoch (which should be in history)
                         log::info!("Attempting to finalize epoch {} before claiming", claim_epoch);
                         match tx_manager.queue_finalize_epoch(claim_epoch).await {
                             Ok(tx_id) => {
@@ -829,8 +948,15 @@ impl MiningOrchestrator {
             .as_secs();
         
         let serialized = serde_json::to_string_pretty(&self.state)?;
-        fs::write(&self.config.state_file, serialized)?;
-        log::debug!("State saved to {:?}", self.config.state_file);
+        
+        // Atomic write: write to temp file first, then rename
+        let temp_path = format!("{}.tmp", self.config.state_file.display());
+        fs::write(&temp_path, &serialized)?;
+        
+        // Rename is atomic on most filesystems
+        fs::rename(&temp_path, &self.config.state_file)?;
+        
+        log::debug!("State saved atomically to {:?}", self.config.state_file);
         Ok(())
     }
     
@@ -1022,7 +1148,7 @@ impl MiningOrchestrator {
         Ok((rotated_offset, max_nonce))
     }
     
-    async fn submit_commitment(&self, data: &CommitmentData) -> Result<()> {
+    async fn submit_commitment(&mut self, data: &CommitmentData) -> Result<()> {
         if let Some(ref tx_manager) = self.tx_manager {
             let tx_id = tx_manager.queue_commit(data.epoch, data.commitment).await?;
             log::info!("Queued commitment transaction {} for epoch {}", tx_id, data.epoch);
