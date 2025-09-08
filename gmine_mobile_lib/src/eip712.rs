@@ -5,7 +5,7 @@ use serde_json::json;
 use std::error::Error;
 
 const CHAIN_ID: &str = "injective-888";
-const MINING_CONTRACT: &str = "inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66"; // V3.5 with migration capability
+const MINING_CONTRACT: &str = "inj14yywct7l4ts9tgqxm4vwe66lwuh5fc5sxplemm"; // V3.7 minimal fixes
 
 pub struct Eip712Signer {
     signing_key: SigningKey,

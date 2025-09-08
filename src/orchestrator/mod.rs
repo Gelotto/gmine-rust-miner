@@ -412,7 +412,22 @@ impl MiningOrchestrator {
                             }
                         }
                         
-                        self.transition_to_committing(solution).await?;
+                        // Check if we've already committed to this epoch
+                        if self.state.committed_epochs.contains(&self.state.epoch) {
+                            log::warn!("Solution found for epoch {} but already committed. Saving for reveal phase.", self.state.epoch);
+                            // We need to transition to WaitingForRevealWindow with this solution
+                            let commitment_data = CommitmentData {
+                                epoch: self.state.epoch,
+                                nonce: solution.nonce.clone(),
+                                digest: solution.digest.clone(),
+                                salt: solution.salt.clone(),
+                                commitment: solution.commitment.clone(),
+                            };
+                            self.state.phase = MiningPhase::WaitingForRevealWindow(commitment_data);
+                            self.save_state()?;
+                        } else {
+                            self.transition_to_committing(solution).await?;
+                        }
                     } else {
                         // Continue mining - send periodic telemetry every 30 seconds
                         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();

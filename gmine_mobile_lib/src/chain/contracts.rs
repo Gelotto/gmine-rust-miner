@@ -1,8 +1,18 @@
 /// Production contract addresses for GMINE V2 deployment
 /// These are the actual deployed contracts on Injective testnet
 
-/// V3.5 Mining Contract with Migration Capability (deployed 2025-09-03)
-/// Adds migration capability and configurable parameters, MIN_STAKE reduced to 100 POWER
+/// V3.7 Mining Contract with Minimal Fixes (deployed 2025-09-06)
+/// Only 2 minimal fixes: field name (lock_duration_blocks) and effective score calculation
+pub const V3_7_MINING_CONTRACT: &str = "inj14yywct7l4ts9tgqxm4vwe66lwuh5fc5sxplemm";
+pub const V3_7_POWER_TOKEN: &str = "inj139a7ev9yhq0lmrz408puguvc5xrfxvndmztrzw";
+
+/// V3.6 Mining Contract with Critical Bug Fixes (deprecated - too many changes)
+/// Had bugs: broke reward distribution with effective score calculation
+pub const V3_6_MINING_CONTRACT: &str = "inj1cktvqr8tcqjmwjvjtmnfpfchuwedhkgpds5zwm";
+pub const V3_6_POWER_TOKEN: &str = "inj1d7xprth0dxkrpx7r93c9rlzpwjrpfqhcl2crat";
+
+/// V3.5 Mining Contract with Migration Capability (deprecated - has field name bug)
+/// Field name mismatch between power token and mining contract makes staking impossible
 pub const V3_5_MINING_CONTRACT: &str = "inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66";
 pub const V3_5_POWER_TOKEN: &str = "inj1esn6fgltm0fvqe2n57cdkvtwwpyyf9due8ps49";
 
@@ -38,7 +48,7 @@ impl NetworkConfig {
             chain_id: "injective-888".to_string(),
             grpc_endpoint: "https://testnet.sentry.chain.grpc.injective.network:443".to_string(),
             rest_endpoint: "https://testnet.sentry.tm.injective.network:443".to_string(),
-            mining_contract: V3_5_MINING_CONTRACT.to_string(),
+            mining_contract: V3_7_MINING_CONTRACT.to_string(),
             gas_price: "500000000inj".to_string(), // 0.5 INJ per gas unit
         }
     }
@@ -184,7 +194,7 @@ mod tests {
     fn test_network_config() {
         let testnet = NetworkConfig::testnet();
         assert_eq!(testnet.chain_id, "injective-888");
-        assert_eq!(testnet.mining_contract, V3_5_MINING_CONTRACT);
+        assert_eq!(testnet.mining_contract, V3_7_MINING_CONTRACT);
         
         let mainnet = NetworkConfig::mainnet();
         assert_eq!(mainnet.chain_id, "injective-1");

@@ -1,0 +1,25 @@
+# GMINE Miner Configuration
+
+# Wallet configuration
+mnemonic = ""
+# mnemonic will be read from MNEMONIC environment variable
+
+# Network configuration
+node_url = "https://testnet.sentry.injective.network:443"
+chain_id = "injective-888"
+gas_price = "160000000inj"
+gas_limit = 350000
+
+# Contract addresses - V3.7
+contract_address = "inj14yywct7l4ts9tgqxm4vwe66lwuh5fc5sxplemm"
+power_token_address = "inj139a7ev9yhq0lmrz408puguvc5xrfxvndmztrzw"
+
+# Mining configuration
+worker_threads = 4
+submission_buffer_blocks = 3
+log_level = "info"
+
+# Telemetry endpoint
+telemetry_enabled = false
+telemetry_endpoint = "https://gmine.gelotto.io"
+telemetry_interval_secs = 30

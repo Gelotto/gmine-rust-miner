@@ -16,8 +16,8 @@ use crate::chain::InjectiveClient;
 pub enum TransactionStatus {
     /// Transaction is queued
     Pending,
-    /// Transaction is being processed
-    Processing,
+    /// Transaction is being processed with hash tracking
+    Processing { tx_hash: Option<String> },
     /// Transaction succeeded
     Success { tx_hash: String },
     /// Transaction failed after all retries
@@ -112,6 +112,8 @@ pub struct TransactionManager {
     is_running: Arc<RwLock<bool>>,
     /// Completed transactions (for status tracking)
     completed: Arc<RwLock<std::collections::HashMap<u64, TransactionStatus>>>,
+    /// Tracks committed epochs to prevent duplicates (epoch -> tx_hash)
+    committed_epochs: Arc<RwLock<std::collections::HashMap<u64, String>>>,
 }
 
 impl TransactionManager {
@@ -124,6 +126,7 @@ impl TransactionManager {
             next_id: Arc::new(RwLock::new(1)),
             is_running: Arc::new(RwLock::new(false)),
             completed: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            committed_epochs: Arc::new(RwLock::new(std::collections::HashMap::new())),
         }
     }
     
@@ -142,6 +145,7 @@ impl TransactionManager {
         let completed = self.completed.clone();
         let is_running = self.is_running.clone();
         let config = self.config.clone();
+        let committed_epochs = self.committed_epochs.clone();
         
         // Spawn background processing task
         tokio::spawn(async move {
@@ -154,7 +158,7 @@ impl TransactionManager {
                     drop(queue_guard); // Release lock while processing
                     
                     // Process transaction
-                    tx.status = TransactionStatus::Processing;
+                    tx.status = TransactionStatus::Processing { tx_hash: None };
                     log::info!("Processing transaction {}: {:?}", tx.id, tx.tx_type);
                     
                     match Self::process_transaction(&client, &config, &mut tx).await {
@@ -162,6 +166,13 @@ impl TransactionManager {
                             let status = TransactionStatus::Success { tx_hash: tx_hash.clone() };
                             tx.status = status.clone();
                             log::info!("Transaction {} succeeded: {}", tx.id, tx_hash);
+                            
+                            // If this was a commit transaction, track the epoch
+                            if let TransactionType::Commit { epoch, .. } = &tx.tx_type {
+                                let mut committed_epochs_guard = committed_epochs.write().await;
+                                committed_epochs_guard.insert(*epoch, tx_hash.clone());
+                                log::info!("✅ Tracked successful commit for epoch {} with tx {}", epoch, tx_hash);
+                            }
                             
                             // Store in completed map for status tracking
                             let mut completed_guard = completed.write().await;
@@ -171,12 +182,38 @@ impl TransactionManager {
                             // Enhanced error logging to understand failures
                             log::error!("Transaction {} ({:?}) failed: {}", tx.id, tx.tx_type, e);
                             
+                            // Check for "Already committed" error - this is actually a SUCCESS!
+                            let error_str = e.to_string();
+                            if error_str.contains("Already committed") || error_str.contains("already committed") {
+                                log::warn!("IMPORTANT: 'Already committed' error means the transaction already succeeded!");
+                                
+                                // Mark as success - we don't have the tx hash but the operation succeeded
+                                let status = TransactionStatus::Success { 
+                                    tx_hash: "ALREADY-COMMITTED-UNKNOWN-HASH".to_string() 
+                                };
+                                tx.status = status.clone();
+                                
+                                // If this was a commit transaction, track the epoch
+                                if let TransactionType::Commit { epoch, .. } = &tx.tx_type {
+                                    let mut committed_epochs_guard = committed_epochs.write().await;
+                                    committed_epochs_guard.insert(*epoch, "ALREADY-COMMITTED".to_string());
+                                    log::info!("✅ Tracked 'already committed' epoch {} (tx hash unknown)", epoch);
+                                }
+                                
+                                // Store in completed map for status tracking
+                                let mut completed_guard = completed.write().await;
+                                completed_guard.insert(tx.id, status);
+                                
+                                // Skip retry logic - this is a success!
+                                continue;
+                            }
+                            
                             // Log specific error details
-                            if e.to_string().contains("Wrong phase") {
+                            if error_str.contains("Wrong phase") {
                                 log::error!("TIMING ERROR: Transaction arrived too late - phase already changed!");
-                            } else if e.to_string().contains("gas") {
+                            } else if error_str.contains("gas") {
                                 log::error!("GAS ERROR: Insufficient gas or gas estimation failed");
-                            } else if e.to_string().contains("sequence") {
+                            } else if error_str.contains("sequence") {
                                 log::error!("SEQUENCE ERROR: Account sequence mismatch - need to refresh");
                             }
                             
@@ -256,6 +293,15 @@ impl TransactionManager {
     
     /// Queue a commit transaction
     pub async fn queue_commit(&self, epoch: u64, commitment: [u8; 32]) -> Result<u64> {
+        // Check if we've already committed to this epoch
+        {
+            let committed_epochs = self.committed_epochs.read().await;
+            if let Some(tx_hash) = committed_epochs.get(&epoch) {
+                log::warn!("DUPLICATE COMMIT PREVENTED: Already committed to epoch {} with tx {}", epoch, tx_hash);
+                return Err(anyhow!("Already committed to epoch {} with tx {}", epoch, tx_hash));
+            }
+        }
+        
         let tx_type = TransactionType::Commit { epoch, commitment };
         self.queue_transaction(tx_type).await
     }
@@ -318,6 +364,18 @@ impl TransactionManager {
         queue.clear();
         log::info!("Transaction queue cleared");
         Ok(())
+    }
+    
+    /// Check if an epoch has already been committed
+    pub async fn is_epoch_committed(&self, epoch: u64) -> bool {
+        let committed_epochs = self.committed_epochs.read().await;
+        committed_epochs.contains_key(&epoch)
+    }
+    
+    /// Get the transaction hash for a committed epoch
+    pub async fn get_committed_epoch_tx(&self, epoch: u64) -> Option<String> {
+        let committed_epochs = self.committed_epochs.read().await;
+        committed_epochs.get(&epoch).cloned()
     }
     
     // Internal methods

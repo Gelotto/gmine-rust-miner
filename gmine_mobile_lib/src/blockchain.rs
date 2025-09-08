@@ -8,7 +8,7 @@ use base64::{Engine as _, engine::general_purpose};
 
 // Use official Injective testnet LCD endpoint
 const TESTNET_REST_URL: &str = "https://testnet.sentry.lcd.injective.network:443";
-const MINING_CONTRACT: &str = "inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66"; // V3.5 with migration capability
+const MINING_CONTRACT: &str = "inj14yywct7l4ts9tgqxm4vwe66lwuh5fc5sxplemm"; // V3.7 minimal fixes
 
 pub struct BlockchainClient {
     agent: ureq::Agent,
