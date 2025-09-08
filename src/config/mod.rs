@@ -49,8 +49,8 @@ impl Default for Config {
                 rpc_endpoint: "https://testnet.sentry.tm.injective.network:443".to_string(),
                 grpc_endpoint: "https://testnet.sentry.chain.grpc.injective.network:443".to_string(),
                 chain_id: "injective-888".to_string(),
-                mining_contract: "inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66".to_string(), // V3.5 with migration capability
-                power_token: "inj1esn6fgltm0fvqe2n57cdkvtwwpyyf9due8ps49".to_string(), // V3.5 power token
+                mining_contract: "inj14yywct7l4ts9tgqxm4vwe66lwuh5fc5sxplemm".to_string(), // V3.7 minimal fixes
+                power_token: "inj139a7ev9yhq0lmrz408puguvc5xrfxvndmztrzw".to_string(), // V3.7 power token
                 gas_price: 500000000.0,
                 gas_adjustment: 1.3,
             },

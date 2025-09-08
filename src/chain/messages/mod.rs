@@ -30,7 +30,7 @@ pub enum ExecuteMsg {
 }
 
 /// Contract address for the GMINE mining contract on testnet
-pub const MINING_CONTRACT_ADDRESS: &str = "inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66"; // V3.5 with migration capability
+pub const MINING_CONTRACT_ADDRESS: &str = "inj14yywct7l4ts9tgqxm4vwe66lwuh5fc5sxplemm"; // V3.7 minimal fixes
 
 /// Helper trait for building messages
 pub trait MessageBuilder {
