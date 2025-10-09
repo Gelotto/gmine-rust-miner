@@ -417,10 +417,10 @@ impl MiningOrchestrator {
                         // Continue mining - send periodic telemetry every 30 seconds
                         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
                         let last = self.last_telemetry_time.load(std::sync::atomic::Ordering::Relaxed);
-                        
+
                         if now - last > 30 {
                             self.last_telemetry_time.store(now, std::sync::atomic::Ordering::Relaxed);
-                            
+
                             if let Some(ref reporter) = self.telemetry_reporter {
                                 let hashrate = self.engine.get_hashrate().await;
                                 let hashrate_mhs = hashrate / 1_000_000.0; // Convert H/s to MH/s
@@ -443,7 +443,62 @@ impl MiningOrchestrator {
                                 }
                             }
                         }
-                        
+
+                        // Check if epoch phase has changed while mining
+                        let client = self.client.read().await;
+                        match query_epoch_info(&*client, &self.config.contract_address).await {
+                            Ok(epoch_info) => {
+                                drop(client);
+
+                                // Check if we're still in a mineable phase
+                                match epoch_info.phase {
+                                    PhaseInfo::Commit { ends_at } => {
+                                        let current_block = self.get_block_height_with_retry().await.unwrap_or(ends_at);
+                                        if current_block >= ends_at {
+                                            // Commit phase ended, stop mining
+                                            log::info!("Commit phase ended for epoch {}, stopping mining", self.state.epoch);
+                                            self.engine.stop_mining().await;
+                                            self.state.phase = MiningPhase::Idle;
+                                            self.save_state()?;
+                                        }
+                                    }
+                                    PhaseInfo::Settlement { ends_at } => {
+                                        // We're in settlement, stop mining and advance epoch if needed
+                                        log::info!("Epoch {} in settlement phase, stopping mining", self.state.epoch);
+                                        self.engine.stop_mining().await;
+
+                                        let current_block = self.get_block_height_with_retry().await.unwrap_or(ends_at + 1);
+                                        if current_block > ends_at {
+                                            log::info!("Settlement ended for epoch {}, advancing to next epoch", self.state.epoch);
+                                            if let Some(ref tx_manager) = self.tx_manager {
+                                                match tx_manager.queue_advance_epoch().await {
+                                                    Ok(tx_id) => {
+                                                        log::info!("Queued advance_epoch transaction {}", tx_id);
+                                                    }
+                                                    Err(e) => {
+                                                        log::error!("Failed to queue advance_epoch: {}", e);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        self.state.phase = MiningPhase::Idle;
+                                        self.save_state()?;
+                                    }
+                                    PhaseInfo::Reveal { .. } => {
+                                        // Reveal phase - stop mining, we can't commit anymore
+                                        log::info!("Epoch {} entered reveal phase, stopping mining", self.state.epoch);
+                                        self.engine.stop_mining().await;
+                                        self.state.phase = MiningPhase::Idle;
+                                        self.save_state()?;
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                drop(client);
+                                log::warn!("Failed to check epoch status while mining: {}", e);
+                            }
+                        }
+
                         sleep(Duration::from_secs(1)).await;
                     }
                 }

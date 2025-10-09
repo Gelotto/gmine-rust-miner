@@ -19,6 +19,7 @@ gmine_miner.state.*
 
 # Log files
 *.log
+mining_logs/
 
 # Temporary files
 *.tmp

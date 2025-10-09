@@ -74,8 +74,8 @@ impl ContractAddresses {
     /// Get testnet contract addresses
     pub fn testnet() -> Self {
         Self {
-            mining_contract: "inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66".to_string(), // V3.5 with migration capability
-            power_token: "inj1esn6fgltm0fvqe2n57cdkvtwwpyyf9due8ps49".to_string(), // V3.5 power token
+            mining_contract: "inj178rg2uk6sm530r2aga89yt56tsy9hcsexz9z46".to_string(), // V3.8 with effective_score fix
+            power_token: "inj13a456wl5s3fy0s4rv7g5wsk3aguyuch5ptfxmx".to_string(), // V3.8 power token
         }
     }
 }
@@ -229,8 +229,8 @@ mod tests {
     #[test]
     fn test_contract_addresses() {
         let addrs = ContractAddresses::testnet();
-        assert_eq!(addrs.mining_contract, "inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66");
-        assert_eq!(addrs.power_token, "inj1esn6fgltm0fvqe2n57cdkvtwwpyyf9due8ps49");
+        assert_eq!(addrs.mining_contract, "inj178rg2uk6sm530r2aga89yt56tsy9hcsexz9z46");
+        assert_eq!(addrs.power_token, "inj13a456wl5s3fy0s4rv7g5wsk3aguyuch5ptfxmx");
     }
 }
 

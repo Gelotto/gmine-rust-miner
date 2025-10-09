@@ -168,18 +168,43 @@ impl TransactionManager {
                             completed_guard.insert(tx.id, status);
                         }
                         Err(e) => {
+                            let error_str = e.to_string();
+
                             // Enhanced error logging to understand failures
-                            log::error!("Transaction {} ({:?}) failed: {}", tx.id, tx.tx_type, e);
-                            
+                            log::error!("Transaction {} ({:?}) failed: {}", tx.id, tx.tx_type, error_str);
+
+                            // CRITICAL FIX: Treat idempotent operations as success
+                            // "Already committed" or "Already revealed" means the operation already happened
+                            // This is effectively a success, not a failure
+                            if error_str.contains("Already committed") ||
+                               error_str.contains("already committed") ||
+                               error_str.contains("Already revealed") ||
+                               error_str.contains("already revealed") {
+                                log::warn!("Transaction {} ({:?}) - operation already completed on-chain, treating as SUCCESS",
+                                          tx.id, tx.tx_type);
+                                let status = TransactionStatus::Success {
+                                    tx_hash: format!("idempotent-success-{}", tx.id)
+                                };
+                                tx.status = status.clone();
+
+                                // Store in completed map
+                                let mut completed_guard = completed.write().await;
+                                completed_guard.insert(tx.id, status);
+                                drop(completed_guard);
+
+                                // Continue to next transaction (skip retry logic)
+                                continue;
+                            }
+
                             // Log specific error details
-                            if e.to_string().contains("Wrong phase") {
+                            if error_str.contains("Wrong phase") {
                                 log::error!("TIMING ERROR: Transaction arrived too late - phase already changed!");
-                            } else if e.to_string().contains("gas") {
+                            } else if error_str.contains("gas") {
                                 log::error!("GAS ERROR: Insufficient gas or gas estimation failed");
-                            } else if e.to_string().contains("sequence") {
+                            } else if error_str.contains("sequence") {
                                 log::error!("SEQUENCE ERROR: Account sequence mismatch - need to refresh");
                             }
-                            
+
                             // Special handling for time-critical reveal transactions
                             let (max_retries, retry_delay) = match &tx.tx_type {
                                 TransactionType::Reveal { .. } => {
@@ -218,12 +243,12 @@ impl TransactionManager {
                                 let mut queue_guard = queue.write().await;
                                 queue_guard.push_back(tx);
                             } else {
-                                let status = TransactionStatus::Failed { 
-                                    error: format!("Failed after {} retries: {}", max_retries, e) 
+                                let status = TransactionStatus::Failed {
+                                    error: format!("Failed after {} retries: {}", max_retries, error_str)
                                 };
                                 tx.status = status.clone();
                                 log::error!("Transaction {} failed permanently", tx.id);
-                                
+
                                 // Store in completed map for status tracking
                                 let mut completed_guard = completed.write().await;
                                 completed_guard.insert(tx.id, status);

@@ -8,7 +8,7 @@ use std::time::Duration;
 use base64;
 
 // Contract configuration
-const MINING_CONTRACT: &str = "inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66"; // V3.5 with migration capability
+const MINING_CONTRACT: &str = "inj178rg2uk6sm530r2aga89yt56tsy9hcsexz9z46"; // V3.8 with effective_score fix
 
 // --- Data Structures ---
 
