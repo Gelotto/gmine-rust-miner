@@ -1,6 +1,28 @@
 /// Production contract addresses for GMINE V2 deployment
 /// These are the actual deployed contracts on Injective testnet
 
+/// V3.8 Mining Contract with Critical Fixes (deployed 2025-09-30)
+/// Fixes: effective_score calculation bug (was causing 0 POWER rewards) + lock_duration_blocks field
+pub const V3_8_MINING_CONTRACT: &str = "inj178rg2uk6sm530r2aga89yt56tsy9hcsexz9z46";
+pub const V3_8_POWER_TOKEN: &str = "inj13a456wl5s3fy0s4rv7g5wsk3aguyuch5ptfxmx";
+
+/// V3.7 Mining Contract (DEPRECATED - never deployed properly)
+/// Had fixes in code but was still running old code_id, causing 0 POWER rewards
+pub const V3_7_MINING_CONTRACT: &str = "inj1ag6fuht62l8dslyv4y4mnnsf02ajrtws4pyjnu";
+pub const V3_7_POWER_TOKEN: &str = "inj1hqxcne6dmc45rraxgxctfv0flvsruz77tufstf";
+
+/// V3.5 Mining Contract with Migration Capability (deployed 2025-09-03)
+/// Adds migration capability and configurable parameters, MIN_STAKE reduced to 100 POWER
+pub const V3_5_MINING_CONTRACT: &str = "inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66";
+pub const V3_5_POWER_TOKEN: &str = "inj1esn6fgltm0fvqe2n57cdkvtwwpyyf9due8ps49";
+
+/// V3.4 Mining Contract with Just-in-Time History Fix (deployed 2025-09-02)
+/// Fixes epoch finalization bug where epochs couldn't be finalized if advance_epoch wasn't called
+pub const V3_4_MINING_CONTRACT: &str = "inj1h2rq8q2ly6mwgwv4jcd5qpjvfqwvwee5v9n032";
+
+/// V3.3 Mining Contract (deprecated - has epoch finalization bug)
+pub const V3_3_MINING_CONTRACT: &str = "inj1y32mvdpmtz9gpyvxdlldulc6ertxs7z7zajs2j";
+
 /// V2 Optimized Mining Contract (deployed 2025-08-07)
 /// Gas costs: 154,585 gas = $0.0019 per reveal = $1.62/month
 pub const V2_MINING_CONTRACT: &str = "inj1mdq8lej6n35lp977w9nvc7mglwc3tqh5cms42y";
@@ -20,13 +42,13 @@ pub struct NetworkConfig {
 }
 
 impl NetworkConfig {
-    /// Get testnet configuration (V2 optimized)
+    /// Get testnet configuration (V3.8 latest)
     pub fn testnet() -> Self {
         Self {
             chain_id: "injective-888".to_string(),
             grpc_endpoint: "https://testnet.sentry.chain.grpc.injective.network:443".to_string(),
             rest_endpoint: "https://testnet.sentry.tm.injective.network:443".to_string(),
-            mining_contract: V2_MINING_CONTRACT.to_string(),
+            mining_contract: V3_8_MINING_CONTRACT.to_string(),
             gas_price: "500000000inj".to_string(), // 0.5 INJ per gas unit
         }
     }
@@ -172,8 +194,8 @@ mod tests {
     fn test_network_config() {
         let testnet = NetworkConfig::testnet();
         assert_eq!(testnet.chain_id, "injective-888");
-        assert_eq!(testnet.mining_contract, V2_MINING_CONTRACT);
-        
+        assert_eq!(testnet.mining_contract, V3_8_MINING_CONTRACT);
+
         let mainnet = NetworkConfig::mainnet();
         assert_eq!(mainnet.chain_id, "injective-1");
     }

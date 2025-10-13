@@ -28,6 +28,13 @@ pub struct MinerConfig {
     pub threads: usize,
     pub batch_size: usize,
     pub target_hashrate: Option<u64>,
+    // V3.3 Staking options
+    #[serde(default)]
+    pub stake_duration_days: Option<u64>, // 30, 90, 180, 365, 730
+    #[serde(default)]
+    pub auto_stake_enabled: bool,
+    #[serde(default)]
+    pub min_stake_amount: Option<String>, // "1000000" = 1 POWER
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,8 +49,8 @@ impl Default for Config {
                 rpc_endpoint: "https://testnet.sentry.tm.injective.network:443".to_string(),
                 grpc_endpoint: "https://testnet.sentry.chain.grpc.injective.network:443".to_string(),
                 chain_id: "injective-888".to_string(),
-                mining_contract: "inj1mdq8lej6n35lp977w9nvc7mglwc3tqh5cms42y".to_string(),
-                power_token: "inj1326k32dr7vjx5tnkuxlt58vkejj60r5ens29s8".to_string(),
+                mining_contract: "inj178rg2uk6sm530r2aga89yt56tsy9hcsexz9z46".to_string(), // V3.8 with effective_score fix
+                power_token: "inj13a456wl5s3fy0s4rv7g5wsk3aguyuch5ptfxmx".to_string(), // V3.8 power token
                 gas_price: 500000000.0,
                 gas_adjustment: 1.3,
             },
@@ -52,6 +59,9 @@ impl Default for Config {
                 threads: num_cpus::get(),
                 batch_size: 1000,
                 target_hashrate: None,
+                stake_duration_days: None,
+                auto_stake_enabled: false,
+                min_stake_amount: None,
             },
             database: DatabaseConfig {
                 path: "gmine_miner.db".to_string(),

@@ -32,5 +32,12 @@ echo ""
 # Forward all arguments to mine.sh with --rust-signer forced
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Check if mine.sh exists
+if [ ! -f "$SCRIPT_DIR/mine.sh" ]; then
+    echo -e "${RED}Error: mine.sh not found in $SCRIPT_DIR${NC}"
+    echo -e "${YELLOW}Please ensure mine.sh is in the same directory as mine-rust.sh${NC}"
+    exit 1
+fi
+
 # Always add --rust-signer flag
 exec "$SCRIPT_DIR/mine.sh" --rust-signer "$@"

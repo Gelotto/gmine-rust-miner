@@ -108,6 +108,10 @@ equix = { git = "https://github.com/Gelotto/gmine-vendor", tag = "v1.0.0", featu
 # Mobile crate for Rust EIP-712 signing
 gmine_mobile = { path = "./gmine_mobile_lib" }
 
+# CosmWasm dependencies for V3.3
+cosmwasm-std = "1.5"
+cw20 = "1.1"
+
 [build-dependencies]
 tonic-build = "0.11"
 prost-build = "0.12"

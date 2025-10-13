@@ -373,12 +373,16 @@ impl ProtoTransactionBuilder {
                 
                 // Poll for transaction confirmation
                 match self.poll_for_tx_confirmation(txhash).await {
-                    Ok(confirmed) => {
-                        if confirmed {
-                            log::info!("Transaction confirmed on-chain: {}", txhash);
-                            return Ok(txhash.to_string());
-                        } else {
-                            return Err("Transaction failed on-chain execution".into());
+                    Ok(result) => {
+                        match result {
+                            Ok(()) => {
+                                log::info!("Transaction confirmed on-chain: {}", txhash);
+                                return Ok(txhash.to_string());
+                            }
+                            Err(error_details) => {
+                                // Pass through the actual error details
+                                return Err(format!("Transaction failed on-chain execution: {}", error_details).into());
+                            }
                         }
                     }
                     Err(e) => {
@@ -394,7 +398,8 @@ impl ProtoTransactionBuilder {
     }
     
     /// Poll for transaction confirmation
-    async fn poll_for_tx_confirmation(&self, tx_hash: &str) -> Result<bool, Box<dyn Error>> {
+    /// Returns Ok(Ok(())) on success, Ok(Err(error_details)) on execution failure, or Err() on polling error
+    async fn poll_for_tx_confirmation(&self, tx_hash: &str) -> Result<Result<(), String>, Box<dyn Error>> {
         const POLL_INTERVAL_MS: u64 = 2500; // 2.5 seconds
         const TIMEOUT_MS: u64 = 60000; // 60 seconds
         const MAX_ATTEMPTS: u32 = (TIMEOUT_MS / POLL_INTERVAL_MS) as u32;
@@ -424,21 +429,22 @@ impl ProtoTransactionBuilder {
                                         if let Some(code) = tx_response.get("code").and_then(|v| v.as_u64()) {
                                             if code == 0 {
                                                 log::info!("Transaction confirmed successfully in block {}", height);
-                                                return Ok(true);
+                                                return Ok(Ok(()));
                                             } else {
                                                 let raw_log = tx_response.get("raw_log")
                                                     .and_then(|v| v.as_str())
                                                     .unwrap_or("Unknown error");
                                                 log::error!("Transaction failed with code {}: {}", code, raw_log);
-                                                
+
                                                 // Log specific error patterns
                                                 if raw_log.contains("Invalid type") {
                                                     log::error!("CONTRACT ERROR: Message format doesn't match contract expectations");
                                                 } else if raw_log.contains("signature verification failed") {
                                                     log::error!("SIGNATURE ERROR: EIP-712 signature verification failed");
                                                 }
-                                                
-                                                return Ok(false);
+
+                                                // Return the full error details
+                                                return Ok(Err(raw_log.to_string()));
                                             }
                                         }
                                     }

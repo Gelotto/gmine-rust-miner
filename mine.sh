@@ -70,8 +70,8 @@ ENVIRONMENT VARIABLES:
 REAL DATA SOURCES:
     - Blockchain: Live Injective testnet (testnet.sentry.chain.grpc.injective.network:443)
     - Contracts: Real deployed contracts on testnet
-    - Mining: inj1mdq8lej6n35lp977w9nvc7mglwc3tqh5cms42y
-    - Power Token: inj1326k32dr7vjx5tnkuxlt58vkejj60r5ens29s8
+    - Mining: inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66 (V3.5 with migration capability)
+    - Power Token: inj1esn6fgltm0fvqe2n57cdkvtwwpyyf9due8ps49
     - Telemetry: Production backend at https://gmine.gelotto.io
     - EIP-712 Bridge: Node.js service for proper Injective signing
 
@@ -239,8 +239,8 @@ show_config() {
     echo -e "${GREEN}=== Real Contract Addresses (V2 - Fixed) ===${NC}"
     
     if [[ "$NETWORK" = "testnet" ]]; then
-        echo -e "Mining Contract: ${YELLOW}inj1mdq8lej6n35lp977w9nvc7mglwc3tqh5cms42y${NC} (V2)"
-        echo -e "Power Token: ${YELLOW}inj1326k32dr7vjx5tnkuxlt58vkejj60r5ens29s8${NC} (V2)"
+        echo -e "Mining Contract: ${YELLOW}inj1vd520adql0apl3wsuyhhpptl79yqwxx73e4j66${NC} (V3.5 with migration capability)"
+        echo -e "Power Token: ${YELLOW}inj1esn6fgltm0fvqe2n57cdkvtwwpyyf9due8ps49${NC} (V3.5 power token)"
         echo -e "gRPC Endpoint: ${YELLOW}https://testnet.sentry.chain.grpc.injective.network:443${NC}"
         echo -e "Telemetry: ${YELLOW}https://gmine.gelotto.io${NC}"
         echo ""

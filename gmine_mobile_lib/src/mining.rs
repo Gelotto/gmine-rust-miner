@@ -60,7 +60,7 @@ pub struct MiningEngine {
 impl MiningEngine {
     pub async fn new(wallet_mnemonic: String, thermal_manager: ThermalManager) -> Result<Self> {
         // Create chain client for testnet (for now)
-        let contract_address = "inj1mdq8lej6n35lp977w9nvc7mglwc3tqh5cms42y".to_string(); // V2 contract
+        let contract_address = "inj178rg2uk6sm530r2aga89yt56tsy9hcsexz9z46".to_string(); // V3.8 with effective_score fix
         let chain_client = MobileChainClient::new(
             wallet_mnemonic.clone(),
             contract_address,
